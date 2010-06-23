@@ -5438,7 +5438,7 @@ int apply_filter_to_req_headers(struct session *t, struct buffer *req, struct hd
 
 				t->be->counters.denied_req++;
 				if (t->listener->counters)
-					t->listener->counters->denied_resp++;
+					t->listener->counters->denied_req++;
 
 				break;
 
@@ -5448,7 +5448,7 @@ int apply_filter_to_req_headers(struct session *t, struct buffer *req, struct hd
 
 				t->be->counters.denied_req++;
 				if (t->listener->counters)
-					t->listener->counters->denied_resp++;
+					t->listener->counters->denied_req++;
 
 				break;
 
@@ -5556,7 +5556,7 @@ int apply_filter_to_req_line(struct session *t, struct buffer *req, struct hdr_e
 
 			t->be->counters.denied_req++;
 			if (t->listener->counters)
-				t->listener->counters->denied_resp++;
+				t->listener->counters->denied_req++;
 
 			done = 1;
 			break;
@@ -5566,7 +5566,7 @@ int apply_filter_to_req_line(struct session *t, struct buffer *req, struct hdr_e
 
 			t->be->counters.denied_req++;
 			if (t->listener->counters)
-				t->listener->counters->denied_resp++;
+				t->listener->counters->denied_req++;
 
 			done = 1;
 			break;
