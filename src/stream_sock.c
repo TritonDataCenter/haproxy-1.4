@@ -33,6 +33,7 @@
 #include <proto/client.h>
 #include <proto/fd.h>
 #include <proto/pipe.h>
+#include <proto/protocols.h>
 #include <proto/stream_sock.h>
 #include <proto/task.h>
 
