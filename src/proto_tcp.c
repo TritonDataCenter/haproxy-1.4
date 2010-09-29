@@ -1,7 +1,7 @@
 /*
  * AF_INET/AF_INET6 SOCK_STREAM protocol layer (tcp)
  *
- * Copyright 2000-2008 Willy Tarreau <w@1wt.eu>
+ * Copyright 2000-2010 Willy Tarreau <w@1wt.eu>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -662,7 +662,7 @@ int tcp_inspect_request(struct session *s, struct buffer *req, int an_bit)
 	 * - if one rule returns KO, then return KO
 	 */
 
-	if (req->flags & BF_SHUTR || !s->fe->tcp_req.inspect_delay || tick_is_expired(req->analyse_exp, now_ms))
+	if (req->flags & (BF_SHUTR|BF_FULL) || !s->fe->tcp_req.inspect_delay || tick_is_expired(req->analyse_exp, now_ms))
 		partial = 0;
 	else
 		partial = ACL_PARTIAL;
