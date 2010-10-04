@@ -118,6 +118,7 @@ struct global global = {
 	.tune = {
 		.bufsize = BUFSIZE,
 		.maxrewrite = MAXREWRITE,
+		.chksize = BUFSIZE,
 	},
 	/* others NULL OK */
 };
