@@ -874,6 +874,7 @@ grace                                     X          X         X         X
 hash-type                                 X          -         X         X
 http-check disable-on-404                 X          -         X         X
 http-check expect                         -          -         X         X
+http-check send-state                     X          -         X         X
 http-request                              -          X         X         X
 id                                        -          X         X         X
 ignore-persist                            -          X         X         X
