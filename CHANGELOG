@@ -1,6 +1,69 @@
 ChangeLog :
 ===========
 
+2010/10/29 : 1.4.9
+    - [BUG] stats: session rate limit gets garbaged in the stats
+    - [DOC] fix http-request documentation
+    - [MEDIUM] enable/disable servers from the stats web interface
+    - [MEDIUM] stats: add an admin level
+    - [DOC] stats: document the "stats admin" statement
+    - [MINOR] checks: add support for LDAPv3 health checks
+    - [MINOR] add better support to "mysql-check"
+    - [BUG] Restore info about available active/backup servers
+    - [CONTRIB] Update haproxy.pl
+    - [CONTRIB] Update Cacti Tempates
+    - [CONTRIB] add templates for Cacti.
+    - [MEDIUM] http: forward client's close when abortonclose is set
+    - [BUG] queue: don't dequeue proxy-global requests on disabled servers
+    - [MEDIUM] servers: support address 0.0.0.0 as the original destination address
+    - [BUG] stats: global stats timeout may be specified before stats socket.
+    - [BUG] stream_sock: cleanly disable the listener in case of resource shortage
+    - [BUG] ebtree: string_equal_bits() could return garbage on identical strings
+    - [BUG] stream_sock: try to flush any extra pending request data after a POST
+    - [BUILD] proto_http: eliminate some build warnings with gcc-2.95
+    - [MEDIUM] make it possible to combine http-pretend-keepalived with httpclose
+    - [MEDIUM] tcp-request : don't wait for inspect-delay to expire when the buffer is full
+    - [DOC] bind option is "defer-accept", not "defer_accept"
+    - [MEDIUM] checks: add support for HTTP contents lookup
+    - [TESTS] add test-check-expect to test various http-check methods
+    - [MINOR] global: add "tune.chksize" to change the default check buffer size
+    - [MINOR] startup: release unused structs after forking
+    - [MINOR] startup: don't wait for nothing when no old pid remains
+    - [BUG] http: don't consider commas as a header delimitor within quotes
+    - [DOC] fix typo in the queue() definition (backend, not frontend)
+    - [DOC] fix typo in the avg_queue() and be_conn() definition (backend, not frontend)
+    - [BUG] deinit: unbind listeners before freeing them
+    - [MINOR] halog: add '-tc' to sort by termination codes
+    - [MINOR] halog: skip non-traffic logs for -st and -tc
+    - [DOC] add a summary about cookie incompatibilities between specs and browsers
+    - [DOC] fix description of cookie "insert" and "indirect" modes
+    - [MEDIUM] http: fix space handling in the request cookie parser
+    - [MEDIUM] http: fix space handling in the response cookie parser
+    - [MINOR] cookie: add options "maxidle" and "maxlife"
+    - [MEDIUM] cookie: support client cookies with some contents appended to their value
+    - [MINOR] http: make some room in the transaction flags to extend cookies
+    - [MINOR] cookie: add the expired (E) and old (O) flags for request cookies
+    - [MEDIUM] cookie: reassign set-cookie status flags to store more states
+    - [MINOR] add encode/decode function for 30-bit integers from/to base64
+    - [MEDIUM] cookie: check for maxidle and maxlife for incoming dated cookies
+    - [MEDIUM] cookie: set the date in the cookie if needed
+    - [DOC] document the cookie maxidle and maxlife parameters
+    - [BUG] checks: don't log backend down for all zero-weight servers
+    - [MEDIUM] checks: set server state to one state from failure when leaving maintenance
+    - [BUG] config: report correct keywords for "observe"
+    - [MINOR] checks: ensure that we can inherit binary checks from the defaults section
+    - [MINOR] acl: add the http_req_first match
+    - [DOC] fix typos about bind-process syntax
+    - [BUG] cookie: correctly unset default cookie parameters
+    - [MINOR] cookie: add support for the "preserve" option
+    - [DOC] missing index entry for http-check send-state
+    - [BUG] ebtree: fix duplicate strings insertion
+    - [CONTRIB] halog: report per-url counts, errors and times
+    - [CONTRIB] halog: minor speed improvement in timer parser
+    - [BUG] http: denied requests must not be counted as denied resps in listeners
+    - [BUG] config: report the correct proxy type in tcp-request errors
+    - [BUG] proto_tcp: potential bug on pattern fetch dst and dport
+
 2010/06/16 : 1.4.8
     - [DOC] mention 'option http-server-close' effect in Tq section
     - [DOC] summarize and highlight persistent connections behaviour
