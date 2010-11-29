@@ -1,6 +1,15 @@
 ChangeLog :
 ===========
 
+2010/11/29 : 1.4.10
+    - [BUG] debug: report the correct poller list in verbose mode
+    - [BUG] capture: do not capture a cookie if there is no memory left
+    - [BUG] appsession: fix possible double free in case of out of memory
+    - [CRITICAL] cookies: mixing cookies in indirect mode and appsession can crash the process
+    - [BUG] http: correctly update the header list when removing two consecutive headers
+    - [BUILD] add the CPU=native and ARCH=32/64 build options
+    - [BUILD] add -fno-strict-aliasing to fix warnings with gcc >= 4.4
+
 2010/10/29 : 1.4.9
     - [BUG] stats: session rate limit gets garbaged in the stats
     - [DOC] fix http-request documentation
