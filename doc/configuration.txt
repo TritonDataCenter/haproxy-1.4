@@ -7721,7 +7721,7 @@ each of which has a special meaning :
 
   - on the second character, the TCP or HTTP session state when it was closed :
 
-        R : th proxy was waiting for a complete, valid REQUEST from the client
+        R : the proxy was waiting for a complete, valid REQUEST from the client
             (HTTP mode only). Nothing was sent to any server.
 
         Q : the proxy was waiting in the QUEUE for a connection slot. This can
