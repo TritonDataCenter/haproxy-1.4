@@ -2475,7 +2475,8 @@ int http_wait_for_request(struct session *s, struct buffer *req, int an_bit)
 
 			/* we cannot return any message on error */
 			if (msg->err_pos >= 0)
-				http_capture_bad_message(&s->fe->invalid_req, s, req, msg, s->fe);
+				http_capture_bad_message(&s->fe->invalid_req, s, req, msg, msg->msg_state, s->fe);
+
 			msg->msg_state = HTTP_MSG_ERROR;
 			req->analysers = 0;
 
@@ -2499,7 +2500,7 @@ int http_wait_for_request(struct session *s, struct buffer *req, int an_bit)
 
 			/* read timeout : give up with an error message. */
 			if (msg->err_pos >= 0)
-				http_capture_bad_message(&s->fe->invalid_req, s, req, msg, s->fe);
+				http_capture_bad_message(&s->fe->invalid_req, s, req, msg, msg->msg_state, s->fe);
 			txn->status = 408;
 			stream_int_retnclose(req->prod, error_message(s, HTTP_ERR_408));
 			msg->msg_state = HTTP_MSG_ERROR;
@@ -2524,7 +2525,7 @@ int http_wait_for_request(struct session *s, struct buffer *req, int an_bit)
 				goto failed_keep_alive;
 
 			if (msg->err_pos >= 0)
-				http_capture_bad_message(&s->fe->invalid_req, s, req, msg, s->fe);
+				http_capture_bad_message(&s->fe->invalid_req, s, req, msg, msg->msg_state, s->fe);
 			txn->status = 400;
 			stream_int_retnclose(req->prod, error_message(s, HTTP_ERR_400));
 			msg->msg_state = HTTP_MSG_ERROR;
@@ -2603,7 +2604,7 @@ int http_wait_for_request(struct session *s, struct buffer *req, int an_bit)
 	 * to block on that, so we have to capture it now.
 	 */
 	if (unlikely(msg->err_pos >= 0))
-		http_capture_bad_message(&s->fe->invalid_req, s, req, msg, s->fe);
+		http_capture_bad_message(&s->fe->invalid_req, s, req, msg, msg->msg_state, s->fe);
 
 	/*
 	 * 1: identify the method
@@ -2799,7 +2800,7 @@ int http_wait_for_request(struct session *s, struct buffer *req, int an_bit)
 		/* we detected a parsing error. We want to archive this request
 		 * in the dedicated proxy area for later troubleshooting.
 		 */
-		http_capture_bad_message(&s->fe->invalid_req, s, req, msg, s->fe);
+		http_capture_bad_message(&s->fe->invalid_req, s, req, msg, msg->msg_state, s->fe);
 	}
 
 	txn->req.msg_state = HTTP_MSG_ERROR;
@@ -3344,7 +3345,7 @@ int http_process_req_common(struct session *s, struct buffer *req, int an_bit, s
 		/* we detected a parsing error. We want to archive this request
 		 * in the dedicated proxy area for later troubleshooting.
 		 */
-		http_capture_bad_message(&s->fe->invalid_req, s, req, msg, s->fe);
+		http_capture_bad_message(&s->fe->invalid_req, s, req, msg, msg->msg_state, s->fe);
 	}
 
 	txn->req.msg_state = HTTP_MSG_ERROR;
@@ -3593,7 +3594,7 @@ int http_process_request(struct session *s, struct buffer *req, int an_bit)
 		/* we detected a parsing error. We want to archive this request
 		 * in the dedicated proxy area for later troubleshooting.
 		 */
-		http_capture_bad_message(&s->fe->invalid_req, s, req, msg, s->fe);
+		http_capture_bad_message(&s->fe->invalid_req, s, req, msg, msg->msg_state, s->fe);
 	}
 
 	txn->req.msg_state = HTTP_MSG_ERROR;
@@ -4581,7 +4582,7 @@ int http_wait_for_response(struct session *s, struct buffer *rep, int an_bit)
 			 */
 		hdr_response_bad:
 			if (msg->msg_state == HTTP_MSG_ERROR || msg->err_pos >= 0)
-				http_capture_bad_message(&s->be->invalid_rep, s, rep, msg, s->fe);
+				http_capture_bad_message(&s->be->invalid_rep, s, rep, msg, msg->msg_state, s->fe);
 
 			s->be->counters.failed_resp++;
 			if (s->srv) {
@@ -4612,7 +4613,7 @@ int http_wait_for_response(struct session *s, struct buffer *rep, int an_bit)
 		/* read error */
 		else if (rep->flags & BF_READ_ERROR) {
 			if (msg->err_pos >= 0)
-				http_capture_bad_message(&s->be->invalid_rep, s, rep, msg, s->fe);
+				http_capture_bad_message(&s->be->invalid_rep, s, rep, msg, msg->msg_state, s->fe);
 
 			s->be->counters.failed_resp++;
 			if (s->srv) {
@@ -4637,7 +4638,7 @@ int http_wait_for_response(struct session *s, struct buffer *rep, int an_bit)
 		/* read timeout : return a 504 to the client. */
 		else if (rep->flags & BF_READ_TIMEOUT) {
 			if (msg->err_pos >= 0)
-				http_capture_bad_message(&s->be->invalid_rep, s, rep, msg, s->fe);
+				http_capture_bad_message(&s->be->invalid_rep, s, rep, msg, msg->msg_state, s->fe);
 
 			s->be->counters.failed_resp++;
 			if (s->srv) {
@@ -4662,7 +4663,7 @@ int http_wait_for_response(struct session *s, struct buffer *rep, int an_bit)
 		/* close from server */
 		else if (rep->flags & BF_SHUTR) {
 			if (msg->err_pos >= 0)
-				http_capture_bad_message(&s->be->invalid_rep, s, rep, msg, s->fe);
+				http_capture_bad_message(&s->be->invalid_rep, s, rep, msg, msg->msg_state, s->fe);
 
 			s->be->counters.failed_resp++;
 			if (s->srv) {
@@ -4687,7 +4688,7 @@ int http_wait_for_response(struct session *s, struct buffer *rep, int an_bit)
 		/* write error to client (we don't send any message then) */
 		else if (rep->flags & BF_WRITE_ERROR) {
 			if (msg->err_pos >= 0)
-				http_capture_bad_message(&s->be->invalid_rep, s, rep, msg, s->fe);
+				http_capture_bad_message(&s->be->invalid_rep, s, rep, msg, msg->msg_state, s->fe);
 
 			s->be->counters.failed_resp++;
 			rep->analysers = 0;
@@ -4712,7 +4713,7 @@ int http_wait_for_response(struct session *s, struct buffer *rep, int an_bit)
 	 */
 
 	if (unlikely(msg->err_pos >= 0))
-		http_capture_bad_message(&s->be->invalid_rep, s, rep, msg, s->fe);
+		http_capture_bad_message(&s->be->invalid_rep, s, rep, msg, msg->msg_state, s->fe);
 
 	/*
 	 * 1: get the status code
@@ -7195,7 +7196,7 @@ int stats_check_uri(struct session *t, struct proxy *backend)
  */
 void http_capture_bad_message(struct error_snapshot *es, struct session *s,
                               struct buffer *buf, struct http_msg *msg,
-			      struct proxy *other_end)
+			      int state, struct proxy *other_end)
 {
 	es->len = buf->r - (buf->data + msg->som);
 	memcpy(es->buf, buf->data + msg->som, MIN(es->len, sizeof(es->buf)));
@@ -7208,6 +7209,8 @@ void http_capture_bad_message(struct error_snapshot *es, struct session *s,
 	es->srv  = s->srv;
 	es->oe   = other_end;
 	es->src  = s->cli_addr;
+	es->state = state;
+	es->flags = buf->flags;
 }
 
 /* return the IP address pointed to by occurrence <occ> of header <hname> in
