@@ -2081,13 +2081,13 @@ int http_parse_chunk_size(struct buffer *buf, struct http_msg *msg)
 		if (++ptr >= end)
 			ptr = buf->data;
 		if (chunk & 0xF000000) /* overflow will occur */
-			return -1;
+			goto error;
 		chunk = (chunk << 4) + c;
 	}
 
 	/* empty size not allowed */
 	if (ptr == buf->lr)
-		return -1;
+		goto error;
 
 	while (http_is_spht[(unsigned char)*ptr]) {
 		if (++ptr >= end)
@@ -2110,7 +2110,7 @@ int http_parse_chunk_size(struct buffer *buf, struct http_msg *msg)
 			}
 
 			if (*ptr != '\n')
-				return -1;
+				goto error;
 			if (++ptr >= end)
 				ptr = buf->data;
 			/* done */
@@ -2133,7 +2133,7 @@ int http_parse_chunk_size(struct buffer *buf, struct http_msg *msg)
 			continue;
 		}
 		else
-			return -1;
+			goto error;
 	}
 
 	/* OK we found our CRLF and now <ptr> points to the next byte,
@@ -2145,6 +2145,9 @@ int http_parse_chunk_size(struct buffer *buf, struct http_msg *msg)
 	msg->hdr_content_len = chunk;
 	msg->msg_state = chunk ? HTTP_MSG_DATA : HTTP_MSG_TRAILERS;
 	return 1;
+ error:
+	msg->err_pos = ptr - buf->data;
+	return -1;
 }
 
 /* This function skips trailers in the buffer <buf> associated with HTTP
@@ -2183,8 +2186,10 @@ int http_forward_trailers(struct buffer *buf, struct http_msg *msg)
 			}
 
 			if (*ptr == '\r') {
-				if (p1)
+				if (p1) {
+					msg->err_pos = ptr - buf->data;
 					return -1;
+				}
 				p1 = ptr;
 			}
 
@@ -2251,8 +2256,10 @@ int http_skip_chunk_crlf(struct buffer *buf, struct http_msg *msg)
 	if (bytes > buf->l - buf->send_max)
 		return 0;
 
-	if (*ptr != '\n')
+	if (*ptr != '\n') {
+		msg->err_pos = ptr - buf->data;
 		return -1;
+	}
 
 	ptr++;
 	if (ptr >= buf->data + buf->size)
@@ -4319,8 +4326,11 @@ int http_request_forward_body(struct session *s, struct buffer *req, int an_bit)
 
 			if (!ret)
 				goto missing_data;
-			else if (ret < 0)
+			else if (ret < 0) {
+				if (msg->err_pos >= 0)
+					http_capture_bad_message(&s->fe->invalid_req, s, req, msg, HTTP_MSG_CHUNK_SIZE, s->be);
 				goto return_bad_req;
+			}
 			/* otherwise we're in HTTP_MSG_DATA or HTTP_MSG_TRAILERS state */
 		}
 		else if (msg->msg_state == HTTP_MSG_DATA_CRLF) {
@@ -4335,8 +4345,11 @@ int http_request_forward_body(struct session *s, struct buffer *req, int an_bit)
 
 			if (ret == 0)
 				goto missing_data;
-			else if (ret < 0)
+			else if (ret < 0) {
+				if (msg->err_pos >= 0)
+					http_capture_bad_message(&s->fe->invalid_req, s, req, msg, HTTP_MSG_DATA_CRLF, s->be);
 				goto return_bad_req;
+			}
 			/* we're in MSG_CHUNK_SIZE now */
 		}
 		else if (msg->msg_state == HTTP_MSG_TRAILERS) {
@@ -4344,11 +4357,16 @@ int http_request_forward_body(struct session *s, struct buffer *req, int an_bit)
 
 			if (ret == 0)
 				goto missing_data;
-			else if (ret < 0)
+			else if (ret < 0) {
+				if (msg->err_pos >= 0)
+					http_capture_bad_message(&s->fe->invalid_req, s, req, msg, HTTP_MSG_TRAILERS, s->be);
 				goto return_bad_req;
+			}
 			/* we're in HTTP_MSG_DONE now */
 		}
 		else {
+			int old_state = msg->msg_state;
+
 			/* other states, DONE...TUNNEL */
 			if (http_resync_states(s)) {
 				/* some state changes occurred, maybe the analyser
@@ -4361,6 +4379,8 @@ int http_request_forward_body(struct session *s, struct buffer *req, int an_bit)
 						 */
 						goto aborted_xfer;
 					}
+					if (msg->err_pos >= 0)
+						http_capture_bad_message(&s->fe->invalid_req, s, req, msg, old_state, s->be);
 					goto return_bad_req;
 				}
 				return 1;
@@ -5324,8 +5344,11 @@ int http_response_forward_body(struct session *s, struct buffer *res, int an_bit
 
 			if (!ret)
 				goto missing_data;
-			else if (ret < 0)
+			else if (ret < 0) {
+				if (msg->err_pos >= 0)
+					http_capture_bad_message(&s->be->invalid_rep, s, res, msg, HTTP_MSG_CHUNK_SIZE, s->fe);
 				goto return_bad_res;
+			}
 			/* otherwise we're in HTTP_MSG_DATA or HTTP_MSG_TRAILERS state */
 		}
 		else if (msg->msg_state == HTTP_MSG_DATA_CRLF) {
@@ -5340,8 +5363,11 @@ int http_response_forward_body(struct session *s, struct buffer *res, int an_bit
 
 			if (!ret)
 				goto missing_data;
-			else if (ret < 0)
+			else if (ret < 0) {
+				if (msg->err_pos >= 0)
+					http_capture_bad_message(&s->be->invalid_rep, s, res, msg, HTTP_MSG_DATA_CRLF, s->fe);
 				goto return_bad_res;
+			}
 			/* we're in MSG_CHUNK_SIZE now */
 		}
 		else if (msg->msg_state == HTTP_MSG_TRAILERS) {
@@ -5349,11 +5375,16 @@ int http_response_forward_body(struct session *s, struct buffer *res, int an_bit
 
 			if (ret == 0)
 				goto missing_data;
-			else if (ret < 0)
+			else if (ret < 0) {
+				if (msg->err_pos >= 0)
+					http_capture_bad_message(&s->be->invalid_rep, s, res, msg, HTTP_MSG_TRAILERS, s->fe);
 				goto return_bad_res;
+			}
 			/* we're in HTTP_MSG_DONE now */
 		}
 		else {
+			int old_state = msg->msg_state;
+
 			/* other states, DONE...TUNNEL */
 			if (http_resync_states(s)) {
 				http_silent_debug(__LINE__, s);
@@ -5367,6 +5398,8 @@ int http_response_forward_body(struct session *s, struct buffer *res, int an_bit
 						 */
 						goto aborted_xfer;
 					}
+					if (msg->err_pos >= 0)
+						http_capture_bad_message(&s->be->invalid_rep, s, res, msg, old_state, s->fe);
 					goto return_bad_res;
 				}
 				return 1;
