@@ -1297,6 +1297,30 @@ acl_fetch_connslots(struct proxy *px, struct session *l4, void *l7, int dir,
 	return 1;
 }
 
+/* set test->i to the id of the backend */
+static int
+acl_fetch_be_id(struct proxy *px, struct session *l4, void *l7, int dir,
+                struct acl_expr *expr, struct acl_test *test) {
+
+	test->flags = ACL_TEST_F_READ_ONLY;
+
+	test->i = l4->be->uuid;
+
+	return 1;
+}
+
+/* set test->i to the id of the server */
+static int
+acl_fetch_srv_id(struct proxy *px, struct session *l4, void *l7, int dir,
+                struct acl_expr *expr, struct acl_test *test) {
+
+	test->flags = ACL_TEST_F_READ_ONLY;
+
+	test->i = l4->srv->puid;
+
+	return 1;
+}
+
 /* set test->i to the number of connections per second reaching the frontend */
 static int
 acl_fetch_fe_sess_rate(struct proxy *px, struct session *l4, void *l7, int dir,
@@ -1440,6 +1464,8 @@ static struct acl_kw_list acl_kws = {{ },{
 	{ "queue", acl_parse_int, acl_fetch_queue_size, acl_match_int, ACL_USE_NOTHING },
 	{ "avg_queue", acl_parse_int, acl_fetch_avg_queue_size, acl_match_int, ACL_USE_NOTHING },
 	{ "srv_is_up",    acl_parse_nothing,   acl_fetch_srv_is_up,  acl_match_nothing, ACL_USE_NOTHING },
+	{ "be_id",        acl_parse_int,     acl_fetch_be_id,          acl_match_int,     ACL_USE_NOTHING },
+	{ "srv_id",       acl_parse_int,     acl_fetch_srv_id,         acl_match_int,     ACL_USE_NOTHING },
 	{ NULL, NULL, NULL, NULL },
 }};
 

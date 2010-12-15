@@ -6387,6 +6387,10 @@ be_conn(backend) <integer>
   backend. It can be used to use a specific farm when the nominal one is full.
   See also the "fe_conn", "queue" and "be_sess_rate" criteria.
 
+be_id <integer>
+  Applies to the backend's id. Can be used in frontends to check from which
+  backend it was called.
+
 be_sess_rate <integer>
 be_sess_rate(backend) <integer>
   Returns true when the sessions creation rate on the backend matches the
@@ -6505,6 +6509,9 @@ src <ip_address>
 
 src_port <integer>
   Applies to the client's TCP source port. This has a very limited usage.
+
+srv_id <integer>
+  Applies to the server's id. Can be used in frontends or backends.
 
 srv_is_up(<server>)
 srv_is_up(<backend>/<server>)
