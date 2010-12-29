@@ -264,6 +264,7 @@ int sess_update_st_cer(struct session *s, struct stream_interface *si)
 		if (s->srv)
 			s->srv->counters.failed_conns++;
 		s->be->counters.failed_conns++;
+		sess_change_server(s, NULL);
 		if (may_dequeue_tasks(s->srv, s->be))
 			process_srv_queue(s->srv);
 
@@ -286,6 +287,7 @@ int sess_update_st_cer(struct session *s, struct stream_interface *si)
 	 */
 	if (s->srv && s->conn_retries == 0 &&
 	    s->be->options & PR_O_REDISP && !(s->flags & SN_FORCE_PRST)) {
+		sess_change_server(s, NULL);
 		if (may_dequeue_tasks(s->srv, s->be))
 			process_srv_queue(s->srv);
 
@@ -393,6 +395,7 @@ void sess_update_stream_int(struct session *s, struct stream_interface *si)
 			s->be->counters.failed_conns++;
 
 			/* release other sessions waiting for this server */
+			sess_change_server(s, NULL);
 			if (may_dequeue_tasks(s->srv, s->be))
 				process_srv_queue(s->srv);
 
