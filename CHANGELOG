@@ -1,6 +1,31 @@
 ChangeLog :
 ===========
 
+2011/02/10 : 1.4.11
+    - [MINOR] cfgparse: Check whether the path given for the stats socket actually fits into the sockaddr_un structure to avoid truncation.
+    - [DOC] fix a minor typo
+    - [DOC] fix ignore-persist documentation
+    - [BUG] http: fix http-pretend-keepalive and httpclose/tunnel mode
+    - [MINOR] add warnings on features not compatible with multi-process mode
+    - [MINOR] acl: add be_id/srv_id to match backend's and server's id
+    - [MINOR] log: add support for passing the forwarded hostname
+    - [MINOR] log: ability to override the syslog tag
+    - [DOC] fix minor typos in the doc
+    - [DOC] fix another typo in the doc
+    - [BUG] http chunking: don't report a parsing error on connection errors
+    - [BUG] stream_interface: truncate buffers when sending error messages
+    - [BUG] http: fix incorrect error reporting during data transfers
+    - [CRITICAL] session: correctly leave turn-around and queue states on abort
+    - [BUG] session: release slot before processing pending connections
+    - [MINOR] stats: report HTTP message state and buffer flags in error dumps
+    - [MINOR] http: support wrapping messages in error captures
+    - [MINOR] http: capture incorrectly chunked message bodies
+    - [MINOR] stats: add global event ID and count
+    - [OPTIM] http: don't send each chunk in a separate packet
+    - [BUG] acl: fix handling of empty lines in pattern files
+    - [BUG] ebtree: fix ebmb_lookup() with len smaller than the tree's keys
+    - [OPTIM] ebtree: ebmb_lookup: reduce stack usage by moving the return code out of the loop
+
 2010/11/29 : 1.4.10
     - [BUG] debug: report the correct poller list in verbose mode
     - [BUG] capture: do not capture a cookie if there is no memory left
