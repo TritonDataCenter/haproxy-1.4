@@ -1014,6 +1014,33 @@ int main(int argc, char **argv)
 	 */
 	signal(SIGPIPE, SIG_IGN);
 
+	/* ulimits */
+	if (!global.rlimit_nofile)
+		global.rlimit_nofile = global.maxsock;
+
+	if (global.rlimit_nofile) {
+		limit.rlim_cur = limit.rlim_max = global.rlimit_nofile;
+		if (setrlimit(RLIMIT_NOFILE, &limit) == -1) {
+			Warning("[%s.main()] Cannot raise FD limit to %d.\n", argv[0], global.rlimit_nofile);
+		}
+	}
+
+	if (global.rlimit_memmax) {
+		limit.rlim_cur = limit.rlim_max =
+			global.rlimit_memmax * 1048576 / global.nbproc;
+#ifdef RLIMIT_AS
+		if (setrlimit(RLIMIT_AS, &limit) == -1) {
+			Warning("[%s.main()] Cannot fix MEM limit to %d megs.\n",
+				argv[0], global.rlimit_memmax);
+		}
+#else
+		if (setrlimit(RLIMIT_DATA, &limit) == -1) {
+			Warning("[%s.main()] Cannot fix MEM limit to %d megs.\n",
+				argv[0], global.rlimit_memmax);
+		}
+#endif
+	}
+
 	/* We will loop at most 100 times with 10 ms delay each time.
 	 * That's at most 1 second. We only send a signal to old pids
 	 * if we cannot grab at least one port.
@@ -1094,33 +1121,6 @@ int main(int argc, char **argv)
 			exit(1);
 		}
 		pidfile = fdopen(pidfd, "w");
-	}
-
-	/* ulimits */
-	if (!global.rlimit_nofile)
-		global.rlimit_nofile = global.maxsock;
-
-	if (global.rlimit_nofile) {
-		limit.rlim_cur = limit.rlim_max = global.rlimit_nofile;
-		if (setrlimit(RLIMIT_NOFILE, &limit) == -1) {
-			Warning("[%s.main()] Cannot raise FD limit to %d.\n", argv[0], global.rlimit_nofile);
-		}
-	}
-
-	if (global.rlimit_memmax) {
-		limit.rlim_cur = limit.rlim_max =
-			global.rlimit_memmax * 1048576 / global.nbproc;
-#ifdef RLIMIT_AS
-		if (setrlimit(RLIMIT_AS, &limit) == -1) {
-			Warning("[%s.main()] Cannot fix MEM limit to %d megs.\n",
-				argv[0], global.rlimit_memmax);
-		}
-#else
-		if (setrlimit(RLIMIT_DATA, &limit) == -1) {
-			Warning("[%s.main()] Cannot fix MEM limit to %d megs.\n",
-				argv[0], global.rlimit_memmax);
-		}
-#endif
 	}
 
 #ifdef CONFIG_HAP_CTTPROXY
