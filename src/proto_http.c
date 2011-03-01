@@ -2144,7 +2144,8 @@ int http_parse_chunk_size(struct buffer *buf, struct http_msg *msg)
 	 */
 	msg->sov += ptr - buf->lr;
 	buf->lr = ptr;
-	msg->hdr_content_len = chunk;
+	msg->chunk_len = chunk;
+	msg->body_len += chunk;
 	msg->msg_state = chunk ? HTTP_MSG_DATA : HTTP_MSG_TRAILERS;
 	return 1;
  error:
@@ -2787,11 +2788,11 @@ int http_wait_for_request(struct session *s, struct buffer *req, int an_bit)
 		if (cl < 0)
 			goto return_bad_req;
 
-		if ((txn->flags & TX_REQ_CNT_LEN) && (msg->hdr_content_len != cl))
+		if ((txn->flags & TX_REQ_CNT_LEN) && (msg->chunk_len != cl))
 			goto return_bad_req; /* already specified, was different */
 
 		txn->flags |= TX_REQ_CNT_LEN | TX_REQ_XFER_LEN;
-		msg->hdr_content_len = cl;
+		msg->body_len = msg->chunk_len = cl;
 	}
 
 	/* bodyless requests have a known length */
@@ -2847,7 +2848,7 @@ int http_process_req_stat_post(struct session *s, struct buffer *req)
 	char *first_param, *cur_param, *next_param, *end_params;
 
 	first_param = req->data + txn->req.eoh + 2;
-	end_params  = first_param + txn->req.hdr_content_len;
+	end_params  = first_param + txn->req.body_len;
 
 	cur_param = next_param = end_params;
 
@@ -3317,7 +3318,7 @@ int http_process_req_common(struct session *s, struct buffer *req, int an_bit, s
 
 			if (rule->rdr_len >= 1 && *rule->rdr_str == '/' &&
 			    (txn->flags & TX_REQ_XFER_LEN) &&
-			    !(txn->flags & TX_REQ_TE_CHNK) && !txn->req.hdr_content_len &&
+			    !(txn->flags & TX_REQ_TE_CHNK) && !txn->req.body_len &&
 			    ((txn->flags & TX_CON_WANT_MSK) == TX_CON_WANT_SCL ||
 			     (txn->flags & TX_CON_WANT_MSK) == TX_CON_WANT_KAL)) {
 				/* keep-alive possible */
@@ -3737,7 +3738,7 @@ int http_process_request_body(struct session *s, struct buffer *req, int an_bit)
 	}
 
 	if (msg->msg_state == HTTP_MSG_CHUNK_SIZE) {
-		/* read the chunk size and assign it to ->hdr_content_len, then
+		/* read the chunk size and assign it to ->chunk_len, then
 		 * set ->sov and ->lr to point to the body and switch to DATA or
 		 * TRAILERS state.
 		 */
@@ -3756,8 +3757,8 @@ int http_process_request_body(struct session *s, struct buffer *req, int an_bit)
 	 * We're waiting for at least <url_param_post_limit> bytes after msg->sov.
 	 */
 
-	if (msg->hdr_content_len < limit)
-		limit = msg->hdr_content_len;
+	if (msg->body_len < limit)
+		limit = msg->body_len;
 
 	if (req->l - (msg->sov - msg->som) >= limit)    /* we have enough bytes now */
 		goto http_end;
@@ -4272,7 +4273,7 @@ int http_resync_states(struct session *s)
  * remaining data and to resync after end of body. It expects the msg_state to
  * be between MSG_BODY and MSG_DONE (inclusive). It returns zero if it needs to
  * read more data, or 1 once we can go on with next request or end the session.
- * When in MSG_DATA or MSG_TRAILERS, it will automatically forward hdr_content_len
+ * When in MSG_DATA or MSG_TRAILERS, it will automatically forward chunk_len
  * bytes of pending data + the headers if not already done (between som and sov).
  * It eventually adjusts som to match sov after the data in between have been sent.
  */
@@ -4319,12 +4320,12 @@ int http_request_forward_body(struct session *s, struct buffer *req, int an_bit)
 	while (1) {
 		http_silent_debug(__LINE__, s);
 		/* we may have some data pending */
-		if (msg->hdr_content_len || msg->som != msg->sov) {
+		if (msg->chunk_len || msg->som != msg->sov) {
 			int bytes = msg->sov - msg->som;
 			if (bytes < 0) /* sov may have wrapped at the end */
 				bytes += req->size;
-			buffer_forward(req, bytes + msg->hdr_content_len);
-			msg->hdr_content_len = 0; /* don't forward that again */
+			buffer_forward(req, bytes + msg->chunk_len);
+			msg->chunk_len = 0; /* don't forward that again */
 			msg->som = msg->sov;
 		}
 
@@ -4340,7 +4341,7 @@ int http_request_forward_body(struct session *s, struct buffer *req, int an_bit)
 				msg->msg_state = HTTP_MSG_DONE;
 		}
 		else if (msg->msg_state == HTTP_MSG_CHUNK_SIZE) {
-			/* read the chunk size and assign it to ->hdr_content_len, then
+			/* read the chunk size and assign it to ->chunk_len, then
 			 * set ->sov and ->lr to point to the body and switch to DATA or
 			 * TRAILERS state.
 			 */
@@ -4874,7 +4875,7 @@ int http_wait_for_response(struct session *s, struct buffer *rep, int an_bit)
 	 */
 
 	/* Skip parsing if no content length is possible. The response flags
-	 * remain 0 as well as the hdr_content_len, which may or may not mirror
+	 * remain 0 as well as the chunk_len, which may or may not mirror
 	 * the real header value, and we note that we know the response's length.
 	 * FIXME: should we parse anyway and return an error on chunked encoding ?
 	 */
@@ -4914,11 +4915,11 @@ int http_wait_for_response(struct session *s, struct buffer *rep, int an_bit)
 		if (cl < 0)
 			goto hdr_response_bad;
 
-		if ((txn->flags & TX_RES_CNT_LEN) && (msg->hdr_content_len != cl))
+		if ((txn->flags & TX_RES_CNT_LEN) && (msg->chunk_len != cl))
 			goto hdr_response_bad; /* already specified, was different */
 
 		txn->flags |= TX_RES_CNT_LEN | TX_RES_XFER_LEN;
-		msg->hdr_content_len = cl;
+		msg->body_len = msg->chunk_len = cl;
 	}
 
 	/* FIXME: we should also implement the multipart/byterange method.
@@ -5299,7 +5300,7 @@ int http_process_res_common(struct session *t, struct buffer *rep, int an_bit, s
  * remaining data and to resync after end of body. It expects the msg_state to
  * be between MSG_BODY and MSG_DONE (inclusive). It returns zero if it needs to
  * read more data, or 1 once we can go on with next request or end the session.
- * When in MSG_DATA or MSG_TRAILERS, it will automatically forward hdr_content_len
+ * When in MSG_DATA or MSG_TRAILERS, it will automatically forward chunk_len
  * bytes of pending data + the headers if not already done (between som and sov).
  * It eventually adjusts som to match sov after the data in between have been sent.
  */
@@ -5341,12 +5342,12 @@ int http_response_forward_body(struct session *s, struct buffer *res, int an_bit
 	while (1) {
 		http_silent_debug(__LINE__, s);
 		/* we may have some data pending */
-		if (msg->hdr_content_len || msg->som != msg->sov) {
+		if (msg->chunk_len || msg->som != msg->sov) {
 			int bytes = msg->sov - msg->som;
 			if (bytes < 0) /* sov may have wrapped at the end */
 				bytes += res->size;
-			buffer_forward(res, bytes + msg->hdr_content_len);
-			msg->hdr_content_len = 0; /* don't forward that again */
+			buffer_forward(res, bytes + msg->chunk_len);
+			msg->chunk_len = 0; /* don't forward that again */
 			msg->som = msg->sov;
 		}
 
@@ -5362,7 +5363,7 @@ int http_response_forward_body(struct session *s, struct buffer *res, int an_bit
 				msg->msg_state = HTTP_MSG_DONE;
 		}
 		else if (msg->msg_state == HTTP_MSG_CHUNK_SIZE) {
-			/* read the chunk size and assign it to ->hdr_content_len, then
+			/* read the chunk size and assign it to ->chunk_len, then
 			 * set ->sov to point to the body and switch to DATA or TRAILERS state.
 			 */
 			int ret = http_parse_chunk_size(res, msg);
@@ -5455,12 +5456,12 @@ int http_response_forward_body(struct session *s, struct buffer *res, int an_bit
 		goto return_bad_res;
 
 	/* forward the chunk size as well as any pending data */
-	if (msg->hdr_content_len || msg->som != msg->sov) {
+	if (msg->chunk_len || msg->som != msg->sov) {
 		int bytes = msg->sov - msg->som;
 		if (bytes < 0) /* sov may have wrapped at the end */
 			bytes += res->size;
-		buffer_forward(res, msg->sov - msg->som + msg->hdr_content_len);
-		msg->hdr_content_len = 0; /* don't forward that again */
+		buffer_forward(res, msg->sov - msg->som + msg->chunk_len);
+		msg->chunk_len = 0; /* don't forward that again */
 		msg->som = msg->sov;
 	}
 
@@ -7379,8 +7380,10 @@ void http_init_txn(struct session *s)
 	txn->req.som = txn->req.eoh = 0; /* relative to the buffer */
 	txn->rsp.sol = txn->rsp.eol = NULL;
 	txn->rsp.som = txn->rsp.eoh = 0; /* relative to the buffer */
-	txn->req.hdr_content_len = 0LL;
-	txn->rsp.hdr_content_len = 0LL;
+	txn->req.chunk_len = 0LL;
+	txn->req.body_len = 0LL;
+	txn->rsp.chunk_len = 0LL;
+	txn->rsp.body_len = 0LL;
 	txn->req.msg_state = HTTP_MSG_RQBEFORE; /* at the very beginning of the request */
 	txn->rsp.msg_state = HTTP_MSG_RPBEFORE; /* at the very beginning of the response */
 
