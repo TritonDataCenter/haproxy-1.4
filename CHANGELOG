@@ -1,6 +1,23 @@
 ChangeLog :
 ===========
 
+2011/03/08 : 1.4.12
+    - [MINOR] stats: add support for several packets in stats admin
+    - [BUG] stats: admin commands must check the proxy state
+    - [BUG] stats: admin web interface must check the proxy state
+    - [BUG] http: update the header list's tail when removing the last header
+    - [DOC] fix typos (http-request instead of http-check)     (cherry picked from commit 8f2a1e72bebea700f37add40997b716fdfd86b9c)
+    - [BUG] http: use correct ACL pointer when evaluating authentication
+    - [BUG] cfgparse: correctly count one socket per port in ranges
+    - [BUG] startup: set the rlimits before binding ports, not after.
+    - [BUG] acl: srv_id must return no match when the server is NULL
+    - [BUG] acl: fd leak when reading patterns from file
+    - [DOC] fix minor typo in "usesrc"
+    - [BUG] http: fix possible incorrect forwarded wrapping chunk size
+    - [BUG] http: fix computation of message body length after forwarding has started
+    - [BUG] http: balance url_param did not work with first parameters on POST
+    - [TESTS] update the url_param regression test to test check_post too
+
 2011/02/10 : 1.4.11
     - [MINOR] cfgparse: Check whether the path given for the stats socket actually fits into the sockaddr_un structure to avoid truncation.
     - [DOC] fix a minor typo
