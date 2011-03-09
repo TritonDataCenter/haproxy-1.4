@@ -1,6 +1,9 @@
 ChangeLog :
 ===========
 
+2011/03/09 : 1.4.13
+    - [BUG] config: don't crash on empty pattern files.
+
 2011/03/08 : 1.4.12
     - [MINOR] stats: add support for several packets in stats admin
     - [BUG] stats: admin commands must check the proxy state
