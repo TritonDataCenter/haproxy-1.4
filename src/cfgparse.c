@@ -3886,7 +3886,7 @@ stats_error_parsing:
 			}
 
 			if (!newsrv->check_port && newsrv->check_addr.sin_port)
-				newsrv->check_port = newsrv->check_addr.sin_port;
+				newsrv->check_port = htons(newsrv->check_addr.sin_port);
 
 			if (!newsrv->check_port && !(newsrv->state & SRV_MAPPORTS))
 				newsrv->check_port = realport; /* by default */
