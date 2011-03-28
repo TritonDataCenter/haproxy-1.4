@@ -1,6 +1,13 @@
 ChangeLog :
 ===========
 
+2011/03/29 : 1.4.14
+    - [MINOR] config: fix endianness of server check port
+    - [BUG] http: fix possible incorrect forwarded wrapping chunk size (take 2)
+    - [MINOR] tools: add two macros MID_RANGE and MAX_RANGE
+    - [BUG] http: fix content-length handling on 32-bit platforms
+    - [OPTIM] buffers: uninline buffer_forward()
+
 2011/03/09 : 1.4.13
     - [BUG] config: don't crash on empty pattern files.
 
