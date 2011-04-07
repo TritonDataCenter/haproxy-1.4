@@ -1,6 +1,9 @@
 ChangeLog :
 ===========
 
+2011/04/08 : 1.4.15
+    - [CRITICAL] fix risk of crash when dealing with space in response cookies
+
 2011/03/29 : 1.4.14
     - [MINOR] config: fix endianness of server check port
     - [BUG] http: fix possible incorrect forwarded wrapping chunk size (take 2)
