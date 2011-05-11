@@ -26,7 +26,6 @@
 
 extern const int http_err_codes[HTTP_ERR_SIZE];
 extern struct chunk http_err_chunks[HTTP_ERR_SIZE];
-extern const char *HTTP_200;
 extern const char *HTTP_302;
 extern const char *HTTP_303;
 extern const char *HTTP_401_fmt;
