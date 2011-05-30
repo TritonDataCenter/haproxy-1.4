@@ -4459,15 +4459,11 @@ int http_request_forward_body(struct session *s, struct buffer *req, int an_bit)
 		goto aborted_xfer;
 
 	/* We know that more data are expected, but we couldn't send more that
-	 * what we did. In theory we could always set the BF_EXPECT_MORE so that
-	 * the system knows it must not set a PUSH on this first part. However
-	 * there exists some applications which incorrectly rely on chunks being
-	 * interactively exchanged. So we set the flag only if the current chunk
-	 * is not finished, or we're not DONE and interactive mode is not set.
+	 * what we did. So we always set the BF_EXPECT_MORE flag so that the
+	 * system knows it must not set a PUSH on this first part. Interactive
+	 * modes are already handled by the stream sock layer.
 	 */
-	if (txn->req.msg_state >= HTTP_MSG_DATA &&
-	    txn->req.msg_state <= HTTP_MSG_TRAILERS)
-		req->flags |= BF_EXPECT_MORE;
+	req->flags |= BF_EXPECT_MORE;
 
 	http_silent_debug(__LINE__, s);
 	return 0;
@@ -5476,15 +5472,11 @@ int http_response_forward_body(struct session *s, struct buffer *res, int an_bit
 	}
 
 	/* We know that more data are expected, but we couldn't send more that
-	 * what we did. In theory we could always set the BF_EXPECT_MORE so that
-	 * the system knows it must not set a PUSH on this first part. However
-	 * there exists some applications which incorrectly rely on chunks being
-	 * interactively exchanged. So we set the flag only if the current chunk
-	 * is not finished, or we're not DONE and interactive mode is not set.
+	 * what we did. So we always set the BF_EXPECT_MORE flag so that the
+	 * system knows it must not set a PUSH on this first part. Interactive
+	 * modes are already handled by the stream sock layer.
 	 */
-	if (txn->rsp.msg_state >= HTTP_MSG_DATA &&
-	    txn->rsp.msg_state <= HTTP_MSG_TRAILERS)
-		res->flags |= BF_EXPECT_MORE;
+	res->flags |= BF_EXPECT_MORE;
 
 	/* the session handler will take care of timeouts and errors */
 	http_silent_debug(__LINE__, s);
