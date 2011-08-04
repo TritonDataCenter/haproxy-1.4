@@ -1,6 +1,24 @@
 ChangeLog :
 ===========
 
+2011/08/04 : 1.4.16
+    - [BUG] checks: fix support of Mysqld >= 5.5 for mysql-check
+    - [DOC] Minor spelling fixes and grammatical enhancements
+    - [CLEANUP] Remove assigned but unused variables
+    - [BUG] checks: http-check expect could fail a check on multi-packet responses
+    - [DOC] fix minor typo in the "dispatch" doc
+    - [MINOR] http: make the "HTTP 200" status code configurable.
+    - [MINOR] http: partially revert the chunking optimization for now
+    - [MINOR] stream_sock: always clear BF_EXPECT_MORE upon complete transfer
+    - [CLEANUP] stream_sock: remove unneeded FL_TCP and factor out test
+    - [MEDIUM] http: add support for "http-no-delay"
+    - [OPTIM] http: optimize chunking again in non-interactive mode
+    - [OPTIM] stream_sock: avoid fast-forwarding of partial data
+    - [OPTIM] stream_sock: don't use splice on too small payloads
+    - [BUG] stats: support url-encoded forms
+    - [BUG] halog: correctly handle truncated last line
+    - [DOC] fix typos, "#" is a sharp, not a dash
+
 2011/04/08 : 1.4.15
     - [CRITICAL] fix risk of crash when dealing with space in response cookies
 
