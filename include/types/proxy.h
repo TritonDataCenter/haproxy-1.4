@@ -78,7 +78,7 @@
 #define PR_O_COOK_ANY   (PR_O_COOK_RW | PR_O_COOK_IND | PR_O_COOK_INS | PR_O_COOK_PFX)
 #define PR_O_SMTP_CHK   0x00000040      /* use SMTP EHLO check for server health - pvandijk@vision6.com.au */
 #define PR_O_KEEPALIVE  0x00000080      /* follow keep-alive sessions */
-#define PR_O_FWDFOR     0x00000100      /* insert x-forwarded-for with client address */
+#define PR_O_FWDFOR     0x00000100      /* conditionally insert x-forwarded-for with client address */
 #define PR_O_BIND_SRC   0x00000200      /* bind to a specific source address when connect()ing */
 #define PR_O_NULLNOLOG  0x00000400      /* a connect without request will not be logged */
 #define PR_O_COOK_NOC   0x00000800      /* add a 'Cache-control' header with the cookie */
@@ -149,7 +149,8 @@
 #define PR_O2_EXP_TYPE  0x03800000      /* mask for http-check expect type */
 #define PR_O2_EXP_INV   0x04000000      /* http-check expect !<rule> */
 #define PR_O2_COOK_PSV  0x08000000      /* cookie ... preserve */
-/* 0x10000000 and 0x20000000 are reserved for 1.5 */
+/* unused: 0x10000000 */
+#define PR_O2_FF_ALWAYS 0x20000000      /* always set x-forwarded-for */
 #define PR_O2_NODELAY   0x40000000      /* fully interactive mode, never delay outgoing data */
 /* end of proxy->options2 */
 

@@ -2982,6 +2982,7 @@ stats_error_parsing:
 			 */
 
 			curproxy->options |= PR_O_FWDFOR;
+			curproxy->options2 |= PR_O2_FF_ALWAYS;
 
 			free(curproxy->fwdfor_hdr_name);
 			curproxy->fwdfor_hdr_name = strdup(DEF_XFORWARDFOR_HDR);
@@ -3013,9 +3014,12 @@ stats_error_parsing:
 					curproxy->fwdfor_hdr_name = strdup(args[cur_arg+1]);
 					curproxy->fwdfor_hdr_len  = strlen(curproxy->fwdfor_hdr_name);
 					cur_arg += 2;
+				} else if (!strcmp(args[cur_arg], "if-none")) {
+					curproxy->options2 &= ~PR_O2_FF_ALWAYS;
+					cur_arg += 1;
 				} else {
 					/* unknown suboption - catchall */
-					Alert("parsing [%s:%d] : '%s %s' only supports optional values: 'except' and 'header'.\n",
+					Alert("parsing [%s:%d] : '%s %s' only supports optional values: 'except', 'header' and 'if-none'.\n",
 					      file, linenum, args[0], args[1]);
 					err_code |= ERR_ALERT | ERR_FATAL;
 					goto out;
@@ -3035,7 +3039,7 @@ stats_error_parsing:
 			curproxy->orgto_hdr_name = strdup(DEF_XORIGINALTO_HDR);
 			curproxy->orgto_hdr_len  = strlen(DEF_XORIGINALTO_HDR);
 
-			/* loop to go through arguments - start at 2, since 0+1 = "option" "forwardfor" */
+			/* loop to go through arguments - start at 2, since 0+1 = "option" "originalto" */
 			cur_arg = 2;
 			while (*(args[cur_arg])) {
 				if (!strcmp(args[cur_arg], "except")) {
@@ -5446,6 +5450,7 @@ out_uri_auth_compat:
 					"forwardfor", proxy_type_str(curproxy), curproxy->id);
 				err_code |= ERR_WARN;
 				curproxy->options &= ~PR_O_FWDFOR;
+				curproxy->options2 &= ~PR_O2_FF_ALWAYS;
 			}
 
 			if (curproxy->options & PR_O_ORGTO) {
