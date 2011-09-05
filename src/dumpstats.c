@@ -2566,11 +2566,15 @@ int stats_dump_full_sess_to_buffer(struct session *s, struct buffer *rep)
 			     sess->listener ? sess->listener->name ? sess->listener->name : "?" : "?",
 			     sess->listener ? sess->listener->luid : 0);
 
-		chunk_printf(&msg,
-			     "  backend=%s (id=%u mode=%s) server=%s (id=%u)\n",
-			     sess->be->id, sess->be->uuid, sess->be->mode ? "http" : "tcp",
-			     sess->srv ? sess->srv->id : "<none>",
-			     sess->srv ? sess->srv->puid : 0);
+		if (sess->be->cap & PR_CAP_BE)
+			chunk_printf(&msg,
+				     "  backend=%s (id=%u mode=%s) server=%s (id=%u)\n",
+				     sess->be->id,
+				     sess->be->uuid, sess->be->mode ? "http" : "tcp",
+				     sess->srv ? sess->srv->id : "<none>",
+				     sess->srv ? sess->srv->puid : 0);
+		else
+			chunk_printf(&msg, "  backend=<NONE> (id=-1 mode=-) server=<NONE> (id=-1)\n");
 
 		chunk_printf(&msg,
 			     "  task=%p (state=0x%02x nice=%d calls=%d exp=%s%s)\n",
@@ -2775,7 +2779,7 @@ int stats_dump_sess_to_buffer(struct session *s, struct buffer *rep)
 					     pn,
 					     ntohs(((struct sockaddr_in *)&curr_sess->cli_addr)->sin_port),
 					     curr_sess->fe->id,
-					     curr_sess->be->id,
+					     (curr_sess->be->cap & PR_CAP_BE) ? curr_sess->be->id : "<NONE>",
 					     curr_sess->srv ? curr_sess->srv->id : "<none>"
 					     );
 				break;
@@ -2789,7 +2793,7 @@ int stats_dump_sess_to_buffer(struct session *s, struct buffer *rep)
 					     pn,
 					     ntohs(((struct sockaddr_in6 *)&curr_sess->cli_addr)->sin6_port),
 					     curr_sess->fe->id,
-					     curr_sess->be->id,
+					     (curr_sess->be->cap & PR_CAP_BE) ? curr_sess->be->id : "<NONE>",
 					     curr_sess->srv ? curr_sess->srv->id : "<none>"
 					     );
 
