@@ -1,6 +1,26 @@
 ChangeLog :
 ===========
 
+2011/09/05 : 1.4.17
+    - [MINOR] halog: add support for termination code matching (-tcn/-TCN)
+    - [MINOR] halog: make SKIP_CHAR stop on field delimiters
+    - [MINOR] halog: add support for HTTP log matching (-H)
+    - [MINOR] halog: gain back performance before SKIP_CHAR fix
+    - [OPTIM] halog: cache some common fields positions
+    - [OPTIM] halog: check once for correct line format and reuse the pointer
+    - [OPTIM] halog: remove many 'if' by using a function pointer for the filters
+    - [OPTIM] halog: remove support for tab delimiters in input data
+    - [MINOR] halog: add -hs/-HS to filter by HTTP status code range
+    - [CLEANUP] update the year in the copyright banner
+    - [BUG] check: http-check expect + regex would crash in defaults section
+    - [MEDIUM] http: make x-forwarded-for addition conditional
+    - [DOC] fixed a few "sensible" -> "sensitive" errors
+    - [MINOR] stats: display "<NONE>" instead of the frontend name when unknown
+    - [BUG] http: trailing white spaces must also be trimmed after headers
+    - [MINOR] http: take a capture of too large requests and responses
+    - [MINOR] http: take a capture of truncated responses
+    - [MINOR] http: take a capture of bad content-lengths.
+
 2011/08/04 : 1.4.16
     - [BUG] checks: fix support of Mysqld >= 5.5 for mysql-check
     - [DOC] Minor spelling fixes and grammatical enhancements
