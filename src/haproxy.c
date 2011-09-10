@@ -392,7 +392,6 @@ void init(int argc, char **argv)
 {
 	int i;
 	int arg_mode = 0;	/* MODE_DEBUG, ... */
-	char *old_argv = *argv;
 	char *tmp;
 	char *cfg_pidfile = NULL;
 	int err_code = 0;
@@ -505,7 +504,7 @@ void init(int argc, char **argv)
 					while (argc > 0) {
 						oldpids[nb_oldpids] = atol(*argv);
 						if (oldpids[nb_oldpids] <= 0)
-							usage(old_argv);
+							usage(progname);
 						argc--; argv++;
 						nb_oldpids++;
 					}
@@ -514,7 +513,7 @@ void init(int argc, char **argv)
 			else { /* >=2 args */
 				argv++; argc--;
 				if (argc == 0)
-					usage(old_argv);
+					usage(progname);
 
 				switch (*flag) {
 				case 'n' : cfg_maxconn = atol(*argv); break;
@@ -530,12 +529,12 @@ void init(int argc, char **argv)
 					LIST_ADDQ(&cfg_cfgfiles, &wl->list);
 					break;
 				case 'p' : cfg_pidfile = *argv; break;
-				default: usage(old_argv);
+				default: usage(progname);
 				}
 			}
 		}
 		else
-			usage(old_argv);
+			usage(progname);
 		argv++; argc--;
 	}
 
@@ -544,7 +543,7 @@ void init(int argc, char **argv)
 			     | MODE_QUIET | MODE_CHECK | MODE_DEBUG));
 
 	if (LIST_ISEMPTY(&cfg_cfgfiles))
-		usage(old_argv);
+		usage(progname);
 
 	/* NB: POSIX does not make it mandatory for gethostname() to NULL-terminate
 	 * the string in case of truncation, and at least FreeBSD appears not to do
