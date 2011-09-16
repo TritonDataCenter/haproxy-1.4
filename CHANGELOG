@@ -1,6 +1,20 @@
 ChangeLog :
 ===========
 
+2011/09/16 : 1.4.18
+    - [MINOR] http: *_dom matching header functions now also split on ":"
+    - [MINOR] halog: support backslash-escaped quotes
+    - BUILD/MINOR: fix the source URL in the spec file
+    - DOC: acl is http_first_req, not http_req_first
+    - BUG/MEDIUM: don't trim last spaces from headers consisting only of spaces
+    - MINOR: acl: add new matches for header/path/url length
+    - [MINOR] halog: do not consider byte 0x8A as end of line
+    - [OPTIM] halog: make fgets parse more bytes by blocks
+    - [OPTIM] halog: add assembly version of the field lookup code
+    - [CLEANUP] startup: report only the basename in the usage message
+    - [DOC] update the README file to reflect new naming rules for patches
+    - BUILD: halog: make halog build on solaris
+
 2011/09/05 : 1.4.17
     - [MINOR] halog: add support for termination code matching (-tcn/-TCN)
     - [MINOR] halog: make SKIP_CHAR stop on field delimiters
