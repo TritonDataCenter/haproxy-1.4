@@ -3476,7 +3476,7 @@ int http_process_request(struct session *s, struct buffer *req, int an_bit)
 		struct hdr_ctx ctx = { .idx = 0 };
 
 		if (!((s->fe->options2 | s->be->options2) & PR_O2_FF_ALWAYS) &&
-		    http_find_header2("X-Forwarded-For", 15, txn->req.sol, &txn->hdr_idx, &ctx)) {
+		    http_find_header2(s->be->fwdfor_hdr_name, s->be->fwdfor_hdr_len, txn->req.sol, &txn->hdr_idx, &ctx)) {
 			/* The header is set to be added only if none is present
 			 * and we found it, so don't do anything.
 			 */
