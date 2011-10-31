@@ -101,6 +101,7 @@ struct server {
 
 	struct list pendconns;			/* pending connections */
 	struct task *check;                     /* the task associated to the health check processing */
+	struct task *warmup;                    /* the task dedicated to the warmup when slowstart is set */
 
 	struct sockaddr_in addr;		/* the address to connect to */
 	struct sockaddr_in source_addr;		/* the address to which we want to bind for connect() */
