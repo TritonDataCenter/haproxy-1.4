@@ -239,7 +239,7 @@ int tcpv4_connect_server(struct stream_interface *si,
 		setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (char *) &one, sizeof(one));
 
 	if (be->options & PR_O_TCP_NOLING)
-		setsockopt(fd, SOL_SOCKET, SO_LINGER, (struct linger *) &nolinger, sizeof(struct linger));
+		si->flags |= SI_FL_NOLINGER;
 
 	/* allow specific binding :
 	 * - server-specific at first
