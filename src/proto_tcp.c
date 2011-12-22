@@ -130,6 +130,7 @@ int tcpv4_bind_socket(int fd, int flags, struct sockaddr_in *local, struct socka
 #endif
 	if (flags) {
 		memset(&bind_addr, 0, sizeof(bind_addr));
+		bind_addr.sin_family = AF_INET;
 		if (flags & 1)
 			bind_addr.sin_addr = remote->sin_addr;
 		if (flags & 2)
