@@ -1,6 +1,21 @@
 ChangeLog :
 ===========
 
+2012/01/08 : 1.4.19
+    - MEDIUM: http: add support for sending the server's name in the outgoing request
+    - BUG/MINOR: fix options forwardfor if-none when an alternative header name is specified
+    - MINOR: task: new function task_schedule() to schedule a wake up
+    - BUG/MEDIUM: checks: fix slowstart behaviour when server tracking is in use
+    - BUG: tcp: option nolinger does not work on backends
+    - BUG: ebtree: ebst_lookup() could return the wrong entry
+    - BUG: http: re-enable TCP quick-ack upon incomplete HTTP requests
+    - CLEANUP: ebtree: remove a few annoying signedness warnings
+    - CLEANUP: ebtree: remove 4-year old harmless typo in duplicates insertion code
+    - CLEANUP: ebtree: remove another typo, a wrong initialization in insertion code
+    - BUG: proto_tcp: set AF_INET on tproxy for use with recent kernels
+    - MINOR: halog: add support for matching queued requests
+    - BUG: http: tighten the list of allowed characters in a URI
+
 2011/09/16 : 1.4.18
     - [MINOR] http: *_dom matching header functions now also split on ":"
     - [MINOR] halog: support backslash-escaped quotes
