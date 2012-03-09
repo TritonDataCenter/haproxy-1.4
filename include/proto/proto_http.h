@@ -103,7 +103,6 @@ void http_reset_txn(struct session *s);
 /* to be used when contents change in an HTTP message */
 #define http_msg_move_end(msg, bytes) do { \
 		unsigned int _bytes = (bytes);	\
-		(msg)->col += (_bytes);		\
 		(msg)->sov += (_bytes);		\
 		(msg)->eoh += (_bytes);		\
 	} while (0)
