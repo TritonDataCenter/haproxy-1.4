@@ -1,6 +1,19 @@
 ChangeLog :
 ===========
 
+2012/03/10 : 1.4.20
+    - BUG/MINOR: fix typo in processing of http-send-name-header
+    - BUG/MEDIUM: correctly disable servers tracking another disabled servers.
+    - BUG/MEDIUM: zero-weight servers must not dequeue requests from the backend
+    - MINOR: halog: add some help on the command line     (cherry picked from commit 615674cdec067066a42f53f5d55628ab7b207e6c)
+    - BUILD: fix build error on FreeBSD
+    - BUG: queue: fix dequeueing sequence on HTTP keep-alive sessions
+    - BUG: http: disable TCP delayed ACKs when forwarding content-length data
+    - BUG: checks: fix server maintenance exit sequence
+    - BUG/MINOR: stream_sock: don't remove BF_EXPECT_MORE and BF_SEND_DONTWAIT on partial writes
+    - DOC: enumerate valid status codes for "observe layer7"
+    - BUILD: make it possible to look for pcre in the default system paths
+
 2012/01/08 : 1.4.19
     - MEDIUM: http: add support for sending the server's name in the outgoing request
     - BUG/MINOR: fix options forwardfor if-none when an alternative header name is specified
