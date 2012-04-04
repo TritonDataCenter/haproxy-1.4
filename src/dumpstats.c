@@ -1369,6 +1369,26 @@ int stats_dump_http(struct session *s, struct buffer *rep, struct uri_auth *uri)
 						     "Nothing has changed."
 						     "</div>\n", uri->uri_prefix);
 				}
+				else if (strcmp(s->data_ctx.stats.st_code, STAT_STATUS_PART) == 0) {
+					chunk_printf(&msg,
+						     "<p><div class=active2>"
+						     "<a class=lfsb href=\"%s\" title=\"Remove this message\">[X]</a> "
+						     "Action partially processed.<br>"
+						     "Some server names are probably unknown or ambiguous (duplicated names in the backend)."
+						     "</div>\n", uri->uri_prefix);
+				}
+				else if (strcmp(s->data_ctx.stats.st_code, STAT_STATUS_ERRP) == 0) {
+					chunk_printf(&msg,
+						     "<p><div class=active0>"
+						     "<a class=lfsb href=\"%s\" title=\"Remove this message\">[X]</a> "
+						     "Action not processed because of invalid parameters."
+						     "<ul>"
+						     "<li>The action is maybe unknown.</li>"
+						     "<li>The backend name is probably unknown or ambiguous (duplicated names).</li>"
+						     "<li>Some server names are probably unknown or ambiguous (duplicated names in the backend).</li>"
+						     "</ul>"
+						     "</div>\n", uri->uri_prefix);
+				}
 				else if (strcmp(s->data_ctx.stats.st_code, STAT_STATUS_EXCD) == 0) {
 					chunk_printf(&msg,
 						     "<p><div class=active0>"

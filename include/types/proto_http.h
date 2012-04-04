@@ -254,6 +254,13 @@ enum {
 	HTTP_AUTH_DIGEST,
 };
 
+/* Actions available for the stats admin forms */
+enum {
+	ST_ADM_ACTION_NONE = 0,
+	ST_ADM_ACTION_DISABLE,
+	ST_ADM_ACTION_ENABLE,
+};
+
 /* This is an HTTP message, as described in RFC2616. It can be either a request
  * message or a response message.
  *

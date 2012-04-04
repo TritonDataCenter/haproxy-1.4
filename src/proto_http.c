@@ -2875,13 +2875,18 @@ int http_wait_for_request(struct session *s, struct buffer *req, int an_bit)
 int http_process_req_stat_post(struct session *s, struct buffer *req)
 {
 	struct http_txn *txn = &s->txn;
-	struct proxy *px;
-	struct server *sv;
+	struct proxy *px = NULL;
+	struct server *sv = NULL;
 
-	char *backend = NULL;
-	int action = 0;
+	char key[LINESIZE];
+	int action = ST_ADM_ACTION_NONE;
+	int reprocess = 0;
+
+	int total_servers = 0;
+	int altered_servers = 0;
 
 	char *first_param, *cur_param, *next_param, *end_params;
+	char *st_cur_param, *st_next_param;
 
 	first_param = req->data + txn->req.eoh + 2;
 	end_params  = first_param + txn->req.body_len;
@@ -2908,15 +2913,21 @@ int http_process_req_stat_post(struct session *s, struct buffer *req)
 	 * From the html form, the backend and the action are at the end.
 	 */
 	while (cur_param > first_param) {
-		char *key, *value;
+		char *value;
+		int poffset, plen;
 
 		cur_param--;
 		if ((*cur_param == '&') || (cur_param == first_param)) {
+ reprocess_servers:
 			/* Parse the key */
-			key = cur_param;
-			if (cur_param != first_param) {
-				/* delimit the string for the next loop */
-				*key++ = '\0';
+			poffset = (cur_param != first_param ? 1 : 0);
+			plen = next_param - cur_param + (cur_param == first_param ? 1 : 0);
+			if ((plen > 0) && (plen <= sizeof(key))) {
+				strncpy(key, cur_param + poffset, plen);
+				key[plen - 1] = '\0';
+			} else {
+				s->data_ctx.stats.st_code = STAT_STATUS_EXCD;
+				goto out;
 			}
 
 			/* Parse the value */
@@ -2933,45 +2944,91 @@ int http_process_req_stat_post(struct session *s, struct buffer *req)
 				break;
 
 			/* Now we can check the key to see what to do */
-			if (!backend && strcmp(key, "b") == 0) {
-				backend = value;
+			if (!px && (strcmp(key, "b") == 0)) {
+				if ((px = findproxy(value, PR_CAP_BE)) == NULL) {
+					/* the backend name is unknown or ambiguous (duplicate names) */
+					s->data_ctx.stats.st_code = STAT_STATUS_ERRP;
+					goto out;
+				}
 			}
-			else if (!action && strcmp(key, "action") == 0) {
+			else if (!action && (strcmp(key, "action") == 0)) {
 				if (strcmp(value, "disable") == 0) {
-					action = 1;
+					action = ST_ADM_ACTION_DISABLE;
 				}
 				else if (strcmp(value, "enable") == 0) {
-					action = 2;
-				} else {
-					/* unknown action, no need to continue */
-					break;
+					action = ST_ADM_ACTION_ENABLE;
+				}
+				else {
+					s->data_ctx.stats.st_code = STAT_STATUS_ERRP;
+					goto out;
 				}
 			}
 			else if (strcmp(key, "s") == 0) {
-				if (backend && action && get_backend_server(backend, value, &px, &sv)) {
+				if (!(px && action)) {
+					/*
+					 * Indicates that we'll need to reprocess the parameters
+					 * as soon as backend and action are known
+					 */
+					if (!reprocess) {
+						st_cur_param  = cur_param;
+						st_next_param = next_param;
+					}
+					reprocess = 1;
+				}
+				else if ((sv = findserver(px, value)) != NULL) {
 					switch (action) {
-					case 1:
+					case ST_ADM_ACTION_DISABLE:
 						if ((px->state != PR_STSTOPPED) && !(sv->state & SRV_MAINTAIN)) {
 							/* Not already in maintenance, we can change the server state */
 							sv->state |= SRV_MAINTAIN;
 							set_server_down(sv);
-							s->data_ctx.stats.st_code = STAT_STATUS_DONE;
+							altered_servers++;
+							total_servers++;
 						}
 						break;
-					case 2:
+					case ST_ADM_ACTION_ENABLE:
 						if ((px->state != PR_STSTOPPED) && (sv->state & SRV_MAINTAIN)) {
 							/* Already in maintenance, we can change the server state */
 							set_server_up(sv);
 							sv->health = sv->rise;	/* up, but will fall down at first failure */
-							s->data_ctx.stats.st_code = STAT_STATUS_DONE;
+							altered_servers++;
+							total_servers++;
 						}
 						break;
 					}
+				} else {
+					/* the server name is unknown or ambiguous (duplicate names) */
+					total_servers++;
 				}
 			}
+			if (reprocess && px && action) {
+				/* Now, we know the backend and the action chosen by the user.
+				 * We can safely restart from the first server parameter
+				 * to reprocess them
+				 */
+				cur_param  = st_cur_param;
+				next_param = st_next_param;
+				reprocess = 0;
+				goto reprocess_servers;
+			}
+
 			next_param = cur_param;
 		}
 	}
+
+	if (total_servers == 0) {
+		s->data_ctx.stats.st_code = STAT_STATUS_NONE;
+	}
+	else if (altered_servers == 0) {
+		s->data_ctx.stats.st_code = STAT_STATUS_ERRP;
+	}
+	else if (altered_servers == total_servers) {
+		s->data_ctx.stats.st_code = STAT_STATUS_DONE;
+	}
+	else {
+		s->data_ctx.stats.st_code = STAT_STATUS_PART;
+	}
+ out:
 	return 1;
 }
 
@@ -7358,6 +7415,10 @@ int stats_check_uri(struct session *t, struct proxy *backend)
 				t->data_ctx.stats.st_code = STAT_STATUS_DONE;
 			else if (memcmp(h, STAT_STATUS_NONE, 4) == 0)
 				t->data_ctx.stats.st_code = STAT_STATUS_NONE;
+			else if (memcmp(h, STAT_STATUS_PART, 4) == 0)
+				t->data_ctx.stats.st_code = STAT_STATUS_PART;
+			else if (memcmp(h, STAT_STATUS_ERRP, 4) == 0)
+				t->data_ctx.stats.st_code = STAT_STATUS_ERRP;
 			else if (memcmp(h, STAT_STATUS_EXCD, 4) == 0)
 				t->data_ctx.stats.st_code = STAT_STATUS_EXCD;
 			else if (memcmp(h, STAT_STATUS_DENY, 4) == 0)
