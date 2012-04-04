@@ -2486,10 +2486,10 @@ int stats_dump_proxy(struct session *s, struct proxy *px, struct uri_auth *uri)
 					"<option value=\"disable\">Disable</option>"
 					"<option value=\"enable\">Enable</option>"
 					"</select>"
-					"<input type=\"hidden\" name=\"b\" value=\"%s\">"
+					"<input type=\"hidden\" name=\"b\" value=\"#%d\">"
 					"&nbsp;<input type=\"submit\" value=\"Apply\">"
 					"</form>",
-					px->id);
+					px->uuid);
 			}
 
 			chunk_printf(&msg, "<p>\n");
