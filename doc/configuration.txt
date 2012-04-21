@@ -1883,7 +1883,7 @@ disabled
   Disable a proxy, frontend or backend.
   May be used in sections :   defaults | frontend | listen | backend
                                  yes   |    yes   |   yes  |   yes
-  Arguments : none
+  Arguments :
 
   The "disabled" keyword is used to disable an instance, mainly in order to
   liberate a listening port or to temporarily disable a service. The instance
@@ -2495,15 +2495,15 @@ mode { tcp|http|health }
               it is possible to do the same and even better by combining TCP or
               HTTP modes with the "monitor" keyword.
 
-   When doing content switching, it is mandatory that the frontend and the
-   backend are in the same mode (generally HTTP), otherwise the configuration
-   will be refused.
+  When doing content switching, it is mandatory that the frontend and the
+  backend are in the same mode (generally HTTP), otherwise the configuration
+  will be refused.
 
-   Example :
+  Example :
      defaults http_instances
          mode http
 
-   See also : "monitor", "monitor-net"
+  See also : "monitor", "monitor-net"
 
 
 monitor fail { if | unless } <condition>
@@ -2572,7 +2572,7 @@ monitor-net <source>
 
   Last, please note that only one "monitor-net" statement can be specified in
   a frontend. If more than one is found, only the last one will be considered.
- 
+
   Example :
     # addresses .252 and .253 are just probing us.
     frontend www
@@ -3424,8 +3424,8 @@ option mysql-check [ user <username> ]
   May be used in sections :   defaults | frontend | listen | backend
                                  yes   |    no    |   yes  |   yes
   Arguments :
-    user <username> This is the username which will be used when connecting
-    to MySQL server.
+    <username> This is the username which will be used when connecting to MySQL
+               server.
 
   If you specify a username, the check consists of sending two MySQL packet,
   one Client Authentication packet, and one QUIT packet, to correctly close
