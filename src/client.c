@@ -377,7 +377,7 @@ int event_accept(int fd) {
 					      pn, ntohs(((struct sockaddr_in6 *)(&s->cli_addr))->sin6_port));
 			}
 
-			write(1, trash, len);
+			if (write(1, trash, len) < 0) /* shut gcc warning */;
 		}
 
 		if ((s->req = pool_alloc2(pool2_buffer)) == NULL)

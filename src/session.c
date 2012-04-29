@@ -1521,7 +1521,7 @@ resync_stream_interface:
 				      s->uniq_id, s->be->id,
 				      (unsigned short)s->si[0].fd,
 				      (unsigned short)s->si[1].fd);
-			write(1, trash, len);
+			if (write(1, trash, len) < 0) /* shut gcc warning */;
 		}
 
 		if (s->si[0].state == SI_ST_CLO &&
@@ -1530,7 +1530,7 @@ resync_stream_interface:
 				      s->uniq_id, s->be->id,
 				      (unsigned short)s->si[0].fd,
 				      (unsigned short)s->si[1].fd);
-			write(1, trash, len);
+			if (write(1, trash, len) < 0) /* shut gcc warning */;
 		}
 	}
 
@@ -1627,7 +1627,7 @@ resync_stream_interface:
 		len = sprintf(trash, "%08x:%s.closed[%04x:%04x]\n",
 			      s->uniq_id, s->be->id,
 			      (unsigned short)s->req->prod->fd, (unsigned short)s->req->cons->fd);
-		write(1, trash, len);
+		if (write(1, trash, len) < 0) /* shut gcc warning */;
 	}
 
 	s->logs.t_close = tv_ms_elapsed(&s->logs.tv_accept, &now);
