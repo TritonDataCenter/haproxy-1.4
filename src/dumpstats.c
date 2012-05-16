@@ -441,7 +441,7 @@ int stats_sock_parse_request(struct stream_interface *si, char *line)
 			}
 
 			/* return server's effective weight at the moment */
-			snprintf(trash, sizeof(trash), "%d (initial %d)\n", sv->uweight, sv->iweight);
+			snprintf(trash, trashlen, "%d (initial %d)\n", sv->uweight, sv->iweight);
 			buffer_feed(si->ib, trash);
 			return 1;
 		}
@@ -721,7 +721,7 @@ void stats_io_handler(struct stream_interface *si)
 			if (buffer_almost_full(si->ib))
 				break;
 
-			reql = buffer_si_peekline(si->ob, trash, sizeof(trash));
+			reql = buffer_si_peekline(si->ob, trash, trashlen);
 			if (reql <= 0) { /* closed or EOL not found */
 				if (reql == 0)
 					break;
@@ -890,7 +890,7 @@ int stats_dump_raw_to_buffer(struct session *s, struct buffer *rep)
 	struct chunk msg;
 	unsigned int up;
 
-	chunk_init(&msg, trash, sizeof(trash));
+	chunk_init(&msg, trash, trashlen);
 
 	switch (s->data_state) {
 	case DATA_ST_INIT:
@@ -1002,7 +1002,7 @@ int stats_http_redir(struct session *s, struct buffer *rep, struct uri_auth *uri
 {
 	struct chunk msg;
 
-	chunk_init(&msg, trash, sizeof(trash));
+	chunk_init(&msg, trash, trashlen);
 
 	switch (s->data_state) {
 	case DATA_ST_INIT:
@@ -1103,7 +1103,7 @@ int stats_dump_http(struct session *s, struct buffer *rep, struct uri_auth *uri)
 	struct chunk msg;
 	unsigned int up;
 
-	chunk_init(&msg, trash, sizeof(trash));
+	chunk_init(&msg, trash, trashlen);
 
 	switch (s->data_state) {
 	case DATA_ST_INIT:
@@ -1451,7 +1451,7 @@ int stats_dump_proxy(struct session *s, struct proxy *px, struct uri_auth *uri)
 	struct listener *l;
 	struct chunk msg;
 
-	chunk_init(&msg, trash, sizeof(trash));
+	chunk_init(&msg, trash, trashlen);
 
 	switch (s->data_ctx.stats.px_st) {
 	case DATA_ST_PX_INIT:
@@ -2502,7 +2502,7 @@ int stats_dump_full_sess_to_buffer(struct session *s, struct buffer *rep)
 	extern const char *monthname[12];
 	char pn[INET6_ADDRSTRLEN];
 
-	chunk_init(&msg, trash, sizeof(trash));
+	chunk_init(&msg, trash, trashlen);
 	sess = s->data_ctx.sess.target;
 
 	if (s->data_ctx.sess.section > 0 && s->data_ctx.sess.uid != sess->uniq_id) {
@@ -2717,7 +2717,7 @@ int stats_dump_sess_to_buffer(struct session *s, struct buffer *rep)
 		return 1;
 	}
 
-	chunk_init(&msg, trash, sizeof(trash));
+	chunk_init(&msg, trash, trashlen);
 
 	switch (s->data_state) {
 	case DATA_ST_INIT:
@@ -2987,7 +2987,7 @@ int stats_dump_errors_to_buffer(struct session *s, struct buffer *rep)
 	if (unlikely(rep->flags & (BF_WRITE_ERROR|BF_SHUTW)))
 		return 1;
 
-	chunk_init(&msg, trash, sizeof(trash));
+	chunk_init(&msg, trash, trashlen);
 
 	if (!s->data_ctx.errors.px) {
 		/* the function had not been called yet, let's prepare the

@@ -135,7 +135,8 @@ static int *oldpids = NULL;
 static int oldpids_sig; /* use USR1 or TERM */
 
 /* this is used to drain data, and as a temporary buffer for sprintf()... */
-char trash[BUFSIZE];
+char *trash = NULL;
+int trashlen = BUFSIZE;
 
 /* this buffer is always the same size as standard buffers and is used for
  * swapping data inside a buffer.
@@ -284,7 +285,7 @@ void sig_dump_state(int sig)
 
 		send_log(p, LOG_NOTICE, "SIGHUP received, dumping servers states for proxy %s.\n", p->id);
 		while (s) {
-			snprintf(trash, sizeof(trash),
+			snprintf(trash, trashlen,
 				 "SIGHUP: Server %s/%s is %s. Conn: %d act, %d pend, %lld tot.",
 				 p->id, s->id,
 				 (s->state & SRV_RUNNING) ? "UP" : "DOWN",
@@ -296,18 +297,18 @@ void sig_dump_state(int sig)
 
 		/* FIXME: those info are a bit outdated. We should be able to distinguish between FE and BE. */
 		if (!p->srv) {
-			snprintf(trash, sizeof(trash),
+			snprintf(trash, trashlen,
 				 "SIGHUP: Proxy %s has no servers. Conn: act(FE+BE): %d+%d, %d pend (%d unass), tot(FE+BE): %lld+%lld.",
 				 p->id,
 				 p->feconn, p->beconn, p->totpend, p->nbpend, p->counters.cum_feconn, p->counters.cum_beconn);
 		} else if (p->srv_act == 0) {
-			snprintf(trash, sizeof(trash),
+			snprintf(trash, trashlen,
 				 "SIGHUP: Proxy %s %s ! Conn: act(FE+BE): %d+%d, %d pend (%d unass), tot(FE+BE): %lld+%lld.",
 				 p->id,
 				 (p->srv_bck) ? "is running on backup servers" : "has no server available",
 				 p->feconn, p->beconn, p->totpend, p->nbpend, p->counters.cum_feconn, p->counters.cum_beconn);
 		} else {
-			snprintf(trash, sizeof(trash),
+			snprintf(trash, trashlen,
 				 "SIGHUP: Proxy %s has %d active servers and %d backup servers available."
 				 " Conn: act(FE+BE): %d+%d, %d pend (%d unass), tot(FE+BE): %lld+%lld.",
 				 p->id, p->srv_act, p->srv_bck,
@@ -403,7 +404,7 @@ void init(int argc, char **argv)
 	 */
     
 	totalconn = actconn = maxfd = listeners = stopping = 0;
-    
+	trash = malloc(trashlen);
 
 #ifdef HAPROXY_MEMMAX
 	global.rlimit_memmax = HAPROXY_MEMMAX;

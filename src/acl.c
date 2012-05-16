@@ -808,8 +808,7 @@ static int acl_read_patterns_from_file(	struct acl_keyword *aclkw,
 	opaque = 0;
 	pattern = NULL;
 	args[1] = "";
-	while (fgets(trash, sizeof(trash), file) != NULL) {
-
+	while (fgets(trash, trashlen, file) != NULL) {
 		c = trash;
 
 		/* ignore lines beginning with a dash */

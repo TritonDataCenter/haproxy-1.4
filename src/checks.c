@@ -235,7 +235,7 @@ static void set_server_check_status(struct server *s, short status, char *desc) 
 
 		int health, rise, fall, state;
 
-		chunk_init(&msg, trash, sizeof(trash));
+		chunk_init(&msg, trash, trashlen);
 
 		/* FIXME begin: calculate local version of the health/rise/fall/state */
 		health = s->health;
@@ -385,7 +385,7 @@ void set_server_down(struct server *s)
 		 */
 		xferred = redistribute_pending(s);
 
-		chunk_init(&msg, trash, sizeof(trash));
+		chunk_init(&msg, trash, trashlen);
 
 		if (s->state & SRV_MAINTAIN) {
 			chunk_printf(&msg,
@@ -467,7 +467,7 @@ void set_server_up(struct server *s) {
 		 */
 		xferred = check_for_pending(s);
 
-		chunk_init(&msg, trash, sizeof(trash));
+		chunk_init(&msg, trash, trashlen);
 
 		if (old_state & SRV_MAINTAIN) {
 			chunk_printf(&msg,
@@ -513,7 +513,7 @@ static void set_server_disabled(struct server *s) {
 	 */
 	xferred = redistribute_pending(s);
 
-	chunk_init(&msg, trash, sizeof(trash));
+	chunk_init(&msg, trash, trashlen);
 
 	chunk_printf(&msg,
 		"Load-balancing on %sServer %s/%s is disabled",
@@ -549,7 +549,7 @@ static void set_server_enabled(struct server *s) {
 	 */
 	xferred = check_for_pending(s);
 
-	chunk_init(&msg, trash, sizeof(trash));
+	chunk_init(&msg, trash, trashlen);
 
 	chunk_printf(&msg,
 		"Load-balancing on %sServer %s/%s is enabled again",

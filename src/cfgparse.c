@@ -512,6 +512,8 @@ int cfg_parse_global(const char *file, int linenum, char **args, int kwm)
 		global.tune.bufsize = atol(args[1]);
 		if (global.tune.maxrewrite >= global.tune.bufsize / 2)
 			global.tune.maxrewrite = global.tune.bufsize / 2;
+		trashlen = global.tune.bufsize;
+		trash = realloc(trash, trashlen);
 	}
 	else if (!strcmp(args[0], "tune.maxrewrite")) {
 		if (*(args[1]) == 0) {
@@ -905,9 +907,9 @@ int cfg_parse_global(const char *file, int linenum, char **args, int kwm)
 					continue;
 				if (strcmp(kwl->kw[index].kw, args[0]) == 0) {
 					/* prepare error message just in case */
-					snprintf(trash, sizeof(trash),
+					snprintf(trash, trashlen,
 						 "error near '%s' in '%s' section", args[0], "global");
-					rc = kwl->kw[index].parse(args, CFG_GLOBAL, NULL, NULL, trash, sizeof(trash));
+					rc = kwl->kw[index].parse(args, CFG_GLOBAL, NULL, NULL, trash, trashlen);
 					if (rc < 0) {
 						Alert("parsing [%s:%d] : %s\n", file, linenum, trash);
 						err_code |= ERR_ALERT | ERR_FATAL;
@@ -3351,7 +3353,7 @@ stats_error_parsing:
 			err_code |= ERR_WARN;
 
 		memcpy(trash, "error near 'balance'", 21);
-		if (backend_parse_balance((const char **)args + 1, trash, sizeof(trash), curproxy) < 0) {
+		if (backend_parse_balance((const char **)args + 1, trash, trashlen, curproxy) < 0) {
 			Alert("parsing [%s:%d] : %s\n", file, linenum, trash);
 			err_code |= ERR_ALERT | ERR_FATAL;
 			goto out;
@@ -4578,9 +4580,9 @@ stats_error_parsing:
 					continue;
 				if (strcmp(kwl->kw[index].kw, args[0]) == 0) {
 					/* prepare error message just in case */
-					snprintf(trash, sizeof(trash),
+					snprintf(trash, trashlen,
 						 "error near '%s' in %s section", args[0], cursection);
-					rc = kwl->kw[index].parse(args, CFG_LISTEN, curproxy, &defproxy, trash, sizeof(trash));
+					rc = kwl->kw[index].parse(args, CFG_LISTEN, curproxy, &defproxy, trash, trashlen);
 					if (rc < 0) {
 						Alert("parsing [%s:%d] : %s\n", file, linenum, trash);
 						err_code |= ERR_ALERT | ERR_FATAL;
