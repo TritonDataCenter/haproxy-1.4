@@ -341,8 +341,10 @@ int stream_sock_read(int fd) {
 				b->flags &= ~BF_OUT_EMPTY;
 			}
 
-			if (fdtab[fd].state == FD_STCONN)
+			if (fdtab[fd].state == FD_STCONN) {
 				fdtab[fd].state = FD_STREADY;
+				si->exp = TICK_ETERNITY;
+			}
 
 			b->flags |= BF_READ_PARTIAL;
 
@@ -632,8 +634,10 @@ static int stream_sock_write_loop(struct stream_interface *si, struct buffer *b)
 		}
 
 		if (ret > 0) {
-			if (fdtab[si->fd].state == FD_STCONN)
+			if (fdtab[si->fd].state == FD_STCONN) {
 				fdtab[si->fd].state = FD_STREADY;
+				si->exp = TICK_ETERNITY;
+			}
 
 			b->flags |= BF_WRITE_PARTIAL;
 
@@ -738,6 +742,7 @@ int stream_sock_write(int fd)
 			 */
 			b->flags |= BF_WRITE_NULL;
 			fdtab[fd].state = FD_STREADY;
+			si->exp = TICK_ETERNITY;
 		}
 
 		/* Funny, we were called to write something but there wasn't
