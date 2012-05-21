@@ -1,6 +1,27 @@
 ChangeLog :
 ===========
 
+2012/05/21 : 1.4.21
+    - MINOR: patch for minor typo (ressources/resources)
+    - CLEANUP: fix typo in findserver() log message
+    - DOC: cleanup indentation, alignment, columns and chapters
+    - DOC: fix some keywords arguments documentation
+    - MINOR: stats admin: allow unordered parameters in POST requests
+    - MINOR: stats admin: use the backend id instead of its name in the form
+    - BUG/MAJOR: trash must always be the size of a buffer
+    - DOC: fix minor regex example issue and improve doc on stats
+    - BUG/MAJOR: possible crash when using capture headers on TCP frontends
+    - MINOR: config: disable header captures in TCP mode and complain
+    - BUG/MEDIUM: balance source did not properly hash IPv6 addresses
+    - CLEANUP: http: message parser must ignore HTTP_MSG_ERROR
+    - CLEANUP: remove a few warning about unchecked return values in debug code
+    - CLEANUP: http: remove unused http_msg->col
+    - BUG/MINOR: http: error snapshots are wrong if buffer wraps
+    - BUG/MAJOR: checks: don't call set_server_status_* when no LB algo is set
+    - MINOR: proxy: make findproxy() return proxies from numeric IDs too
+    - BUILD: http: stop gcc-4.1.2 from complaining about possibly uninitialized values
+    - BUG/MINOR: stop connect timeout when connect succeeds
+
 2012/03/10 : 1.4.20
     - BUG/MINOR: fix typo in processing of http-send-name-header
     - BUG/MEDIUM: correctly disable servers tracking another disabled servers.
