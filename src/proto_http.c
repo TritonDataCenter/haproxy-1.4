@@ -975,8 +975,8 @@ void http_sess_clflog(struct session *s)
 	*(h++) = '\"';
 	*(h++) = sess_term_cond[(s->flags & SN_ERR_MASK) >> SN_ERR_SHIFT];
 	*(h++) = sess_fin_state[(s->flags & SN_FINST_MASK) >> SN_FINST_SHIFT];
-	*(h++) = (be->options & PR_O_COOK_ANY) ? sess_cookie[(txn->flags & TX_CK_MASK) >> TX_CK_SHIFT] : '-',
-	*(h++) = (be->options & PR_O_COOK_ANY) ? sess_set_cookie[(txn->flags & TX_SCK_MASK) >> TX_SCK_SHIFT] : '-';
+	*(h++) = (be->ck_opts) ? sess_cookie[(txn->flags & TX_CK_MASK) >> TX_CK_SHIFT] : '-',
+	*(h++) = (be->ck_opts) ? sess_set_cookie[(txn->flags & TX_SCK_MASK) >> TX_SCK_SHIFT] : '-';
 	*(h++) = '\"';
 
 	w = snprintf(h, sizeof(tmpline) - (h - tmpline),
@@ -1189,8 +1189,8 @@ void http_sess_log(struct session *s)
 		 txn->srv_cookie ? txn->srv_cookie : "-",
 		 sess_term_cond[(s->flags & SN_ERR_MASK) >> SN_ERR_SHIFT],
 		 sess_fin_state[(s->flags & SN_FINST_MASK) >> SN_FINST_SHIFT],
-		 (be->options & PR_O_COOK_ANY) ? sess_cookie[(txn->flags & TX_CK_MASK) >> TX_CK_SHIFT] : '-',
-		 (be->options & PR_O_COOK_ANY) ? sess_set_cookie[(txn->flags & TX_SCK_MASK) >> TX_SCK_SHIFT] : '-',
+		 (be->ck_opts) ? sess_cookie[(txn->flags & TX_CK_MASK) >> TX_CK_SHIFT] : '-',
+		 (be->ck_opts) ? sess_set_cookie[(txn->flags & TX_SCK_MASK) >> TX_SCK_SHIFT] : '-',
 		 actconn, fe->feconn, be->beconn, s->srv ? s->srv->cur_sess : 0,
 		 (s->flags & SN_REDISP)?"+":"",
 		 (s->conn_retries>0)?(be->conn_retries - s->conn_retries):be->conn_retries,
@@ -4979,7 +4979,7 @@ int http_wait_for_response(struct session *s, struct buffer *rep, int an_bit)
 		 *    Cache-Control or Expires header fields."
 		 */
 		if (likely(txn->meth != HTTP_METH_POST) &&
-		    (s->be->options & (PR_O_CHK_CACHE|PR_O_COOK_NOC)))
+		    ((s->be->options & PR_O_CHK_CACHE) || (s->be->ck_opts & PR_CK_NOC)))
 			txn->flags |= TX_CACHEABLE | TX_CACHE_COOK;
 		break;
 	default:
@@ -5297,20 +5297,20 @@ int http_process_res_common(struct session *t, struct buffer *rep, int an_bit, s
 		/*
 		 * 5: check for cache-control or pragma headers if required.
 		 */
-		if ((t->be->options & (PR_O_COOK_NOC | PR_O_CHK_CACHE)) != 0)
+		if ((t->be->options & PR_O_CHK_CACHE) || (t->be->ck_opts & PR_CK_NOC))
 			check_response_for_cacheability(t, rep);
 
 		/*
 		 * 6: add server cookie in the response if needed
 		 */
-		if ((t->srv) && (t->be->options & PR_O_COOK_INS) &&
-		    !((txn->flags & TX_SCK_FOUND) && (t->be->options2 & PR_O2_COOK_PSV)) &&
+		if ((t->srv) && (t->be->ck_opts & PR_CK_INS) &&
+		    !((txn->flags & TX_SCK_FOUND) && (t->be->ck_opts & PR_CK_PSV)) &&
 		    (!(t->flags & SN_DIRECT) ||
 		     ((t->be->cookie_maxidle || txn->cookie_last_date) &&
 		      (!txn->cookie_last_date || (txn->cookie_last_date - date.tv_sec) < 0)) ||
 		     (t->be->cookie_maxlife && !txn->cookie_first_date) ||  // set the first_date
 		     (!t->be->cookie_maxlife && txn->cookie_first_date)) && // remove the first_date
-		    (!(t->be->options & PR_O_COOK_POST) || (txn->meth == HTTP_METH_POST)) &&
+		    (!(t->be->ck_opts & PR_CK_POST) || (txn->meth == HTTP_METH_POST)) &&
 		    !(t->flags & SN_IGNORE_PRST)) {
 			int len;
 			/* the server is known, it's not the one the client requested, or the
@@ -5364,7 +5364,7 @@ int http_process_res_common(struct session *t, struct buffer *rep, int an_bit, s
 			 * Some caches understand the correct form: 'no-cache="set-cookie"', but
 			 * others don't (eg: apache <= 1.3.26). So we use 'private' instead.
 			 */
-			if ((t->be->options & PR_O_COOK_NOC) && (txn->flags & TX_CACHEABLE)) {
+			if ((t->be->ck_opts & PR_CK_NOC) && (txn->flags & TX_CACHEABLE)) {
 
 				txn->flags &= ~TX_CACHEABLE & ~TX_CACHE_COOK;
 
@@ -6374,7 +6374,7 @@ void manage_client_side_cookies(struct session *t, struct buffer *req)
 				 * +-------------------------> hdr_beg
 				 */
 
-				if (t->be->options & PR_O_COOK_PFX) {
+				if (t->be->ck_opts & PR_CK_PFX) {
 					for (delim = val_beg; delim < val_end; delim++)
 						if (*delim == COOKIE_DELIM)
 							break;
@@ -6485,7 +6485,7 @@ void manage_client_side_cookies(struct session *t, struct buffer *req)
 				 *   application cookie so that it does not get accidentely removed later,
 				 *   if we're in cookie prefix mode
 				 */
-				if ((t->be->options & PR_O_COOK_PFX) && (delim != val_end)) {
+				if ((t->be->ck_opts & PR_CK_PFX) && (delim != val_end)) {
 					int delta; /* negative */
 
 					delta = buffer_replace2(req, val_beg, delim + 1, NULL, 0);
@@ -6500,7 +6500,7 @@ void manage_client_side_cookies(struct session *t, struct buffer *req)
 					preserve_hdr = 1; /* we want to keep this cookie */
 				}
 				else if (del_from == NULL &&
-					 (t->be->options & (PR_O_COOK_INS | PR_O_COOK_IND)) == (PR_O_COOK_INS | PR_O_COOK_IND)) {
+					 (t->be->ck_opts & (PR_CK_INS | PR_CK_IND)) == (PR_CK_INS | PR_CK_IND)) {
 					del_from = prev;
 				}
 			} else {
@@ -7043,13 +7043,13 @@ void manage_server_side_cookies(struct session *t, struct buffer *res)
 				 * We'll delete it too if the "indirect" option is set and we're in
 				 * a direct access.
 				 */
-				if (t->be->options2 & PR_O2_COOK_PSV) {
+				if (t->be->ck_opts & PR_CK_PSV) {
 					/* The "preserve" flag was set, we don't want to touch the
 					 * server's cookie.
 					 */
 				}
-				else if (((t->srv) && (t->be->options & PR_O_COOK_INS)) ||
-				    ((t->flags & SN_DIRECT) && (t->be->options & PR_O_COOK_IND))) {
+				else if (((t->srv) && (t->be->ck_opts & PR_CK_INS)) ||
+				    ((t->flags & SN_DIRECT) && (t->be->ck_opts & PR_CK_IND))) {
 					/* this cookie must be deleted */
 					if (*prev == ':' && next == hdr_end) {
 						/* whole header */
@@ -7077,7 +7077,7 @@ void manage_server_side_cookies(struct session *t, struct buffer *res)
 					/* and go on with next cookie */
 				}
 				else if ((t->srv) && (t->srv->cookie) &&
-					 (t->be->options & PR_O_COOK_RW)) {
+					 (t->be->ck_opts & PR_CK_RW)) {
 					/* replace bytes val_beg->val_end with the cookie name associated
 					 * with this server since we know it.
 					 */
@@ -7092,7 +7092,7 @@ void manage_server_side_cookies(struct session *t, struct buffer *res)
 					txn->flags |= TX_SCK_REPLACED;
 				}
 				else if ((t->srv) && (t->srv->cookie) &&
-					 (t->be->options & PR_O_COOK_PFX)) {
+					 (t->be->ck_opts & PR_CK_PFX)) {
 					/* insert the cookie name associated with this server
 					 * before existing cookie, and insert a delimiter between them..
 					 */

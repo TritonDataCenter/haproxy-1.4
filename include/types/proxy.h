@@ -71,18 +71,13 @@
 /* bits for proxy->options */
 #define PR_O_REDISP     0x00000001      /* allow reconnection to dispatch in case of errors */
 #define PR_O_TRANSP     0x00000002      /* transparent mode : use original DEST as dispatch */
-#define PR_O_COOK_RW    0x00000004      /* rewrite all direct cookies with the right serverid */
-#define PR_O_COOK_IND   0x00000008      /* keep only indirect cookies */
-#define PR_O_COOK_INS   0x00000010      /* insert cookies when not accessing a server directly */
-#define PR_O_COOK_PFX   0x00000020      /* rewrite all cookies by prefixing the right serverid */
-#define PR_O_COOK_ANY   (PR_O_COOK_RW | PR_O_COOK_IND | PR_O_COOK_INS | PR_O_COOK_PFX)
+/* unused: 0x04, 0x08, 0x10, 0x20 */
 #define PR_O_SMTP_CHK   0x00000040      /* use SMTP EHLO check for server health - pvandijk@vision6.com.au */
 #define PR_O_KEEPALIVE  0x00000080      /* follow keep-alive sessions */
 #define PR_O_FWDFOR     0x00000100      /* conditionally insert x-forwarded-for with client address */
 #define PR_O_BIND_SRC   0x00000200      /* bind to a specific source address when connect()ing */
 #define PR_O_NULLNOLOG  0x00000400      /* a connect without request will not be logged */
-#define PR_O_COOK_NOC   0x00000800      /* add a 'Cache-control' header with the cookie */
-#define PR_O_COOK_POST  0x00001000      /* don't insert cookies for requests other than a POST */
+/* unused: 0x0800, 0x1000 */
 #define PR_O_HTTP_CHK   0x00002000      /* use HTTP 'OPTIONS' method to check server health */
 #define PR_O_PERSIST    0x00004000      /* server persistence stays effective even when server is down */
 #define PR_O_LOGASAP    0x00008000      /* log as soon as possible, without waiting for the session to complete */
@@ -148,11 +143,20 @@
 #define PR_O2_EXP_RSTR  0x02000000      /* http-check expect rstring */
 #define PR_O2_EXP_TYPE  0x03800000      /* mask for http-check expect type */
 #define PR_O2_EXP_INV   0x04000000      /* http-check expect !<rule> */
-#define PR_O2_COOK_PSV  0x08000000      /* cookie ... preserve */
-/* unused: 0x10000000 */
+/* unused: 0x08000000, 0x10000000 */
 #define PR_O2_FF_ALWAYS 0x20000000      /* always set x-forwarded-for */
 #define PR_O2_NODELAY   0x40000000      /* fully interactive mode, never delay outgoing data */
 /* end of proxy->options2 */
+
+/* Cookie settings for pr->ck_opts */
+#define PR_CK_RW        0x00000001      /* rewrite all direct cookies with the right serverid */
+#define PR_CK_IND       0x00000002      /* keep only indirect cookies */
+#define PR_CK_INS       0x00000004      /* insert cookies when not accessing a server directly */
+#define PR_CK_PFX       0x00000008      /* rewrite all cookies by prefixing the right serverid */
+#define PR_CK_ANY       (PR_CK_RW | PR_CK_IND | PR_CK_INS | PR_CK_PFX)
+#define PR_CK_NOC       0x00000010      /* add a 'Cache-control' header with the cookie */
+#define PR_CK_POST      0x00000020      /* don't insert cookies for requests other than a POST */
+#define PR_CK_PSV       0x00000040      /* cookie ... preserve */
 
 /* bits for sticking rules */
 #define STK_IS_MATCH	0x00000001	/* match on request fetch */
@@ -179,6 +183,7 @@ struct proxy {
 	int state;				/* proxy state */
 	int options;				/* PR_O_REDISP, PR_O_TRANSP, ... */
 	int options2;				/* PR_O2_* */
+	unsigned int ck_opts;			/* PR_CK_* (cookie options) */
 	unsigned int fe_req_ana, be_req_ana;	/* bitmap of common request protocol analysers for the frontend and backend */
 	unsigned int fe_rsp_ana, be_rsp_ana;	/* bitmap of common response protocol analysers for the frontend and backend */
 	int mode;				/* mode = PR_MODE_TCP, PR_MODE_HTTP or PR_MODE_HEALTH */
