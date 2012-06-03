@@ -259,6 +259,8 @@ enum {
 	ST_ADM_ACTION_NONE = 0,
 	ST_ADM_ACTION_DISABLE,
 	ST_ADM_ACTION_ENABLE,
+	ST_ADM_ACTION_STOP,
+	ST_ADM_ACTION_START,
 };
 
 /* This is an HTTP message, as described in RFC2616. It can be either a request
