@@ -1,6 +1,27 @@
 ChangeLog :
 ===========
 
+2012/08/14 : 1.4.22
+    - BUG/MEDIUM: option forwardfor if-none doesn't work with some configurations
+    - MINOR: balance uri: added 'whole' parameter to include query string in hash calculation
+    - DOC: specify the default value for maxconn in the context of a proxy
+    - BUG/MINOR: checks: expire on timeout.check if smaller than timeout.connect
+    - REORG/MINOR: use dedicated proxy flags for the cookie handling
+    - BUG/MINOR: config: do not report twice the incompatibility between cookie and non-http
+    - MINOR: http: add support for "httponly" and "secure" cookie attributes
+    - MEDIUM: stats: add support for soft stop/soft start in the admin interface
+    - BUILD: add support for linux kernels >= 2.6.28
+    - MINOR: contrib/iprange: add a network IP range to mask converter
+    - BUILD: add an AIX 5.2 (and later) target.
+    - MINOR: halog: use the more recent dual-mode fgets2 implementation
+    - BUG/MEDIUM: ebtree: ebmb_insert() must not call cmp_bits on full-length matches
+    - CLEANUP: halog: make clean should also remove .o files     (cherry picked from commit 8ad4193100aafa19f04929670371bf823dbe11d0)
+    - OPTIM: halog: make use of memchr() on platforms which provide a fast one
+    - OPTIM: halog: improve cold-cache behaviour when loading a file
+    - [MINOR] config: make it possible to specify a cookie even without a server
+    - MINOR: config: tolerate server "cookie" setting in non-HTTP mode
+    - BUG/MINOR: tarpit: fix condition to return the HTTP 500 message
+
 2012/05/21 : 1.4.21
     - MINOR: patch for minor typo (ressources/resources)
     - CLEANUP: fix typo in findserver() log message
