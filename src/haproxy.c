@@ -732,6 +732,7 @@ void deinit(void)
 	int i;
 
 	while (p) {
+		free(p->conf.file);
 		free(p->id);
 		free(p->check_req);
 		free(p->cookie_name);
