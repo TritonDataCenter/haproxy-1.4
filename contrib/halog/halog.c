@@ -1111,7 +1111,6 @@ void filter_accept_holes(const char *accept_field, const char *time_field, struc
 
 	t2 = insert_value(&timers[0], tptr, val);
 	t2->count++;
-	lines_out++;
 	return;
 }
 
