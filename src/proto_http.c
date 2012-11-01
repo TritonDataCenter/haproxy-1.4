@@ -3981,6 +3981,7 @@ int http_send_name_header(struct http_txn *txn, struct http_msg *msg, struct buf
 
 	char *hdr_val;
 
+	int delta = txn->req.eoh;
 	while (http_find_header2(hdr_name, hdr_name_len, msg->sol, &txn->hdr_idx, &ctx)) {
 		/* remove any existing values from the header */
 	        http_remove_header2(msg, buf, &txn->hdr_idx, &ctx);
@@ -3994,6 +3995,10 @@ int http_send_name_header(struct http_txn *txn, struct http_msg *msg, struct buf
 	*hdr_val++ = ' ';
 	hdr_val += strlcpy2(hdr_val, srv_name, trash + trashlen - hdr_val);
 	http_header_add_tail2(buf, msg, &txn->hdr_idx, trash, hdr_val - trash);
+	delta -= txn->req.eoh;
+
+	/* Adjust buffer data length to send */
+	buf->send_max -= delta;
 
 	return 0;
 }
