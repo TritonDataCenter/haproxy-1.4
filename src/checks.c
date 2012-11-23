@@ -1527,6 +1527,9 @@ struct task *process_chk(struct task *t)
 			else
 				set_server_down(s);
 			s->curfd = -1;
+			/* avoid accumulating TIME_WAIT on timeouts */
+			setsockopt(fd, SOL_SOCKET, SO_LINGER,
+				   (struct linger *) &nolinger, sizeof(struct linger));
 			fd_delete(fd);
 
 			rv = 0;
