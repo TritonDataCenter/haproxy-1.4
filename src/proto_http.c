@@ -4919,6 +4919,28 @@ int http_wait_for_response(struct session *s, struct buffer *rep, int an_bit)
 			return 0;
 		}
 
+		/* client abort with an abortonclose */
+		else if ((rep->flags & BF_SHUTR) && ((s->req->flags & (BF_SHUTR|BF_SHUTW)) == (BF_SHUTR|BF_SHUTW))) {
+			s->fe->counters.cli_aborts++;
+			if (s->fe != s->be)
+				s->be->counters.cli_aborts++;
+			if (s->srv)
+				s->srv->counters.cli_aborts++;
+		
+			buffer_auto_close(rep);
+			rep->analysers = 0;
+			txn->status = 400;
+			buffer_ignore(rep, rep->l - rep->send_max);
+			stream_int_retnclose(rep->cons, error_message(s, HTTP_ERR_400));
+		
+			if (!(s->flags & SN_ERR_MASK))
+				s->flags |= SN_ERR_CLICL;
+			if (!(s->flags & SN_FINST_MASK))
+				s->flags |= SN_FINST_H;
+			/* process_session() will take care of the error */
+			return 0;
+		}
+
 		/* close from server, capture the response if the server has started to respond */
 		else if (rep->flags & BF_SHUTR) {
 			if (msg->msg_state >= HTTP_MSG_RPVER || msg->err_pos >= 0)
@@ -5666,8 +5688,18 @@ int http_response_forward_body(struct session *s, struct buffer *res, int an_bit
 	}
 
  missing_data:
-	/* stop waiting for data if the input is closed before the end */
+
+	if (res->flags & BF_SHUTW)
+		goto aborted_xfer;
+
+	/* stop waiting for data if the input is closed before the end. If the
+	 * client side was already closed, it means that the client has aborted,
+	 * so we don't want to count this as a server abort. Otherwise it's a
+	 * server abort.
+	 */
 	if (res->flags & BF_SHUTR) {
+		if ((res->flags & BF_SHUTW_NOW) || (s->req->flags & BF_SHUTR))
+			goto aborted_xfer;
 		if (!(s->flags & SN_ERR_MASK))
 			s->flags |= SN_ERR_SRVCL;
 		s->be->counters.srv_aborts++;
@@ -5675,9 +5707,6 @@ int http_response_forward_body(struct session *s, struct buffer *res, int an_bit
 			s->srv->counters.srv_aborts++;
 		goto return_bad_res_stats_ok;
 	}
-
-	if (res->flags & BF_SHUTW)
-		goto aborted_xfer;
 
 	/* we need to obey the req analyser, so if it leaves, we must too */
 	if (!s->req->analysers)
