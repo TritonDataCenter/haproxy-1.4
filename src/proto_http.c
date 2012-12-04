@@ -2506,6 +2506,8 @@ int http_wait_for_request(struct session *s, struct buffer *req, int an_bit)
 			if (msg->err_pos >= 0)
 				http_capture_bad_message(&s->fe->invalid_req, s, req, msg, msg->msg_state, s->fe);
 
+			txn->status = 400;
+			stream_int_retnclose(req->prod, NULL);
 			msg->msg_state = HTTP_MSG_ERROR;
 			req->analysers = 0;
 
