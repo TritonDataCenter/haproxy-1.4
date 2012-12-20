@@ -4443,9 +4443,10 @@ int http_resync_states(struct session *s)
 		buffer_auto_close(s->rep);
 		buffer_auto_read(s->rep);
 	}
-	else if (txn->rsp.msg_state == HTTP_MSG_CLOSED ||
+	else if ((txn->req.msg_state >= HTTP_MSG_DONE &&
+		  (txn->rsp.msg_state == HTTP_MSG_CLOSED || (s->rep->flags & BF_SHUTW))) ||
 		 txn->rsp.msg_state == HTTP_MSG_ERROR ||
-		 (s->rep->flags & BF_SHUTW)) {
+		 txn->req.msg_state == HTTP_MSG_ERROR) {
 		s->rep->analysers = 0;
 		buffer_auto_close(s->rep);
 		buffer_auto_read(s->rep);
