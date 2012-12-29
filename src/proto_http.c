@@ -3476,6 +3476,10 @@ int http_process_req_common(struct session *s, struct buffer *req, int an_bit, s
 				s->rep->analysers = AN_RES_HTTP_XFER_BODY;
 				txn->req.msg_state = HTTP_MSG_CLOSED;
 				txn->rsp.msg_state = HTTP_MSG_DONE;
+				if (!(s->flags & SN_ERR_MASK))
+					s->flags |= SN_ERR_PRXCOND;
+				if (!(s->flags & SN_FINST_MASK))
+					s->flags |= SN_FINST_R;
 				break;
 			} else {
 				/* keep-alive not possible */
