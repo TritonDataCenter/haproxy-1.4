@@ -282,14 +282,14 @@ unsigned int inetaddr_host_lim_ret(const char *text, char *stop, const char **re
 
 static inline char *cut_crlf(char *s) {
 
-	while (*s != '\r' || *s == '\n') {
+	while (*s != '\r' && *s != '\n') {
 		char *p = s++;
 
 		if (!*p)
 			return p;
 	}
 
-	*s++ = 0;
+	*s++ = '\0';
 
 	return s;
 }
