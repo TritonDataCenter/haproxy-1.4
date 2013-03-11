@@ -90,6 +90,20 @@ const char *HTTP_303 =
 	"Content-length: 0\r\n"
 	"Location: "; /* not terminated since it will be concatenated with the URL */
 
+
+/* same as 302 except that the browser MUST retry with the same method */
+const char *HTTP_307 =
+	"HTTP/1.1 307 Temporary Redirect\r\n"
+	"Cache-Control: no-cache\r\n"
+	"Content-length: 0\r\n"
+	"Location: "; /* not terminated since it will be concatenated with the URL */
+
+/* same as 301 except that the browser MUST retry with the same method */
+const char *HTTP_308 =
+	"HTTP/1.1 308 Permanent Redirect\r\n"
+	"Content-length: 0\r\n"
+	"Location: "; /* not terminated since it will be concatenated with the URL */
+
 /* Warning: this one is an sprintf() fmt string, with <realm> as its only argument */
 const char *HTTP_401_fmt =
 	"HTTP/1.0 401 Unauthorized\r\n"
@@ -3355,6 +3369,12 @@ int http_process_req_common(struct session *s, struct buffer *req, int an_bit, s
 
 			/* build redirect message */
 			switch(rule->code) {
+			case 308:
+				msg_fmt = HTTP_308;
+				break;
+			case 307:
+				msg_fmt = HTTP_307;
+				break;
 			case 303:
 				msg_fmt = HTTP_303;
 				break;

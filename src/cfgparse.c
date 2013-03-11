@@ -2215,9 +2215,9 @@ int cfg_parse_listen(const char *file, int linenum, char **args, int kwm)
 				}
 				cur_arg++;
 				code = atol(args[cur_arg]);
-				if (code < 301 || code > 303) {
-					Alert("parsing [%s:%d] : '%s': unsupported HTTP code '%d'.\n",
-					      file, linenum, args[0], code);
+				if (code < 301 || code > 308 || (code > 303 && code < 307)) {
+					Alert("parsing [%s:%d] : '%s': unsupported HTTP code '%s' (must be one of 301, 302, 303, 307 or 308).\n",
+					      file, linenum, args[0], args[cur_arg]);
 					err_code |= ERR_ALERT | ERR_FATAL;
 					goto out;
 				}
