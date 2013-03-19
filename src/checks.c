@@ -888,7 +888,7 @@ static int event_srv_chk_r(int fd)
 		/* in case of TCP only, this tells us if the connection failed */
 		if (!(s->result & SRV_CHK_ERROR))
 			set_server_check_status(s, HCHK_STATUS_SOCKERR, NULL);
-
+		shutr = 1;
 		goto out_wakeup;
 	}
 
