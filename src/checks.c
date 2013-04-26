@@ -1388,8 +1388,13 @@ struct task *process_chk(struct task *t)
 					/* disabling tcp quick ack now allows
 					 * the request to leave the machine with
 					 * the first ACK.
+					 * We also want to do this to perform a
+					 * SYN-SYN/ACK-RST sequence when raw TCP
+					 * checks are configured.
 					 */
-					if (s->proxy->options2 & PR_O2_SMARTCON)
+					if ((s->proxy->options2 & PR_O2_SMARTCON) ||
+					    (!(s->proxy->options & (PR_O_HTTP_CHK|PR_O_SMTP_CHK)) &&
+					     !(s->proxy->options2 & (PR_O2_SSL3_CHK|PR_O2_MYSQL_CHK|PR_O2_LDAP_CHK))))
 						setsockopt(fd, IPPROTO_TCP, TCP_QUICKACK, (char *) &zero, sizeof(zero));
 #endif
 					if ((connect(fd, (struct sockaddr *)&sa, sizeof(sa)) != -1) || (errno == EINPROGRESS)) {
