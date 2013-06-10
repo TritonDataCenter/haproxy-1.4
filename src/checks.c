@@ -835,8 +835,9 @@ static int event_srv_chk_w(int fd)
 			set_server_check_status(s, HCHK_STATUS_L4OK, NULL);
 
 			/* avoid accumulating TIME_WAIT on connect-only checks */
-			setsockopt(fd, SOL_SOCKET, SO_LINGER,
-				   (struct linger *) &nolinger, sizeof(struct linger));
+			if (!tcp_drain(fd))
+				setsockopt(fd, SOL_SOCKET, SO_LINGER,
+					   (struct linger *) &nolinger, sizeof(struct linger));
 			goto out_wakeup;
 		}
 	}
@@ -877,7 +878,7 @@ static int event_srv_chk_w(int fd)
 static int event_srv_chk_r(int fd)
 {
 	__label__ out_wakeup;
-	int len;
+	int len = 0;
 	struct task *t = fdtab[fd].owner;
 	struct server *s = t->context;
 	char *desc;
@@ -924,6 +925,7 @@ static int event_srv_chk_r(int fd)
 			goto out_wakeup;
 		}
 	}
+	/* Note: we keep len = -1 if EAGAIN was detected */
 
 	/* Intermediate or complete response received.
 	 * Terminate string in check_data buffer.
@@ -1172,7 +1174,7 @@ static int event_srv_chk_r(int fd)
 	 * To avoid sending RSTs all the time, we first try to drain pending
 	 * data.
 	 */
-	if (!shutr && recv(fd, trash, trashlen, MSG_NOSIGNAL|MSG_DONTWAIT) > 0)
+	if (!shutr && (len == -1 || !tcp_drain(fd)))
 		setsockopt(fd, SOL_SOCKET, SO_LINGER,
 			   (struct linger *) &nolinger, sizeof(struct linger));
 	shutdown(fd, SHUT_RDWR);

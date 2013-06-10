@@ -427,6 +427,41 @@ int tcpv4_connect_server(struct stream_interface *si,
 }
 
 
+/* Tries to drain any pending incoming data from the socket to reach the
+ * receive shutdown. Returns non-zero if the shutdown was found, otherwise
+ * zero. This is useful to decide whether we can close a connection cleanly
+ * are we must kill it hard.
+ */
+int tcp_drain(int fd)
+{
+	int turns = 2;
+	int len;
+
+	while (turns) {
+#ifdef MSG_TRUNC_CLEARS_INPUT
+		len = recv(fd, NULL, INT_MAX, MSG_DONTWAIT | MSG_NOSIGNAL | MSG_TRUNC);
+		if (len == -1 && errno == EFAULT)
+#endif
+			len = recv(fd, trash, trashlen, MSG_DONTWAIT | MSG_NOSIGNAL);
+
+		if (len == 0)                /* cool, shutdown received */
+			return 1;
+
+		if (len < 0) {
+			if (errno == EAGAIN) /* connection not closed yet */
+				return 0;
+			if (errno == EINTR)  /* oops, try again */
+				continue;
+			/* other errors indicate a dead connection, fine. */
+			return 1;
+		}
+		/* OK we read some data, let's try again once */
+		turns--;
+	}
+	/* some data are still present, give up */
+	return 0;
+}
+
 /* This function tries to bind a TCPv4/v6 listener. It may return a warning or
  * an error message in <err> if the message is at most <errlen> bytes long
  * (including '\0'). The return value is composed from ERR_ABORT, ERR_WARN,

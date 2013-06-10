@@ -38,6 +38,7 @@ int tcp_inspect_request(struct session *s, struct buffer *req, int an_bit);
 int acl_fetch_rdp_cookie(struct proxy *px, struct session *l4, void *l7, int dir,
                          struct acl_expr *expr, struct acl_test *test);
 int tcp_persist_rdp_cookie(struct session *s, struct buffer *req, int an_bit);
+int tcp_drain(int fd);
 
 #endif /* _PROTO_PROTO_TCP_H */
 
