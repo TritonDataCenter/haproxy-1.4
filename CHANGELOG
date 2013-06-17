@@ -1,6 +1,12 @@
 ChangeLog :
 ===========
 
+2013/06/17 : 1.4.24
+    - BUG/MAJOR: backend: consistent hash can loop forever in certain circumstances
+    - BUG/MEDIUM: checks: disable TCP quickack when pure TCP checks are used
+    - MEDIUM: protocol: implement a "drain" function in protocol layers
+    - BUG/CRITICAL: fix a possible crash when using negative header occurrences
+
 2013/04/03 : 1.4.23
     - CONTRIB: halog: sort URLs by avg bytes_read or total bytes_read
     - BUG: fix garbage data when http-send-name-header replaces an existing header
