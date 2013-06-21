@@ -1370,8 +1370,11 @@ resync_stream_interface:
 			buffer_shutw_now(s->req);
 
 	/* shutdown(write) pending */
-	if (unlikely((s->req->flags & (BF_SHUTW|BF_SHUTW_NOW|BF_OUT_EMPTY)) == (BF_SHUTW_NOW|BF_OUT_EMPTY)))
+	if (unlikely((s->req->flags & (BF_SHUTW|BF_SHUTW_NOW|BF_OUT_EMPTY)) == (BF_SHUTW_NOW|BF_OUT_EMPTY))) {
+		if (s->req->flags & BF_READ_ERROR)
+			s->req->cons->flags |= SI_FL_NOLINGER;
 		s->req->cons->shutw(s->req->cons);
+	}
 
 	/* shutdown(write) done on server side, we must stop the client too */
 	if (unlikely((s->req->flags & (BF_SHUTW|BF_SHUTR|BF_SHUTR_NOW)) == BF_SHUTW &&
