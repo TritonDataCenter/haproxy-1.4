@@ -870,7 +870,6 @@ static int tcp_parse_tcp_req(char **args, int section_type, struct proxy *curpx,
 	if (!strcmp(args[1], "content")) {
 		int action;
 		int warn = 0;
-		int pol = ACL_COND_NONE;
 		struct acl_cond *cond;
 		struct tcp_rule *rule;
 
@@ -891,7 +890,6 @@ static int tcp_parse_tcp_req(char **args, int section_type, struct proxy *curpx,
 			return -1;
 		}
 
-		pol = ACL_COND_NONE;
 		cond = NULL;
 
 		if (strcmp(args[3], "if") == 0 || strcmp(args[3], "unless") == 0) {
