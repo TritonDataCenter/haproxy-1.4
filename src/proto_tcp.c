@@ -376,20 +376,18 @@ int tcpv4_connect_server(struct stream_interface *si,
 	if ((connect(fd, (struct sockaddr *)srv_addr, sizeof(struct sockaddr_in)) == -1) &&
 	    (errno != EINPROGRESS) && (errno != EALREADY) && (errno != EISCONN)) {
 
-		if (errno == EAGAIN || errno == EADDRINUSE) {
+		if (errno == EAGAIN || errno == EADDRINUSE || errno == EADDRNOTAVAIL) {
 			char *msg;
-			if (errno == EAGAIN) /* no free ports left, try again later */
+			if (errno == EAGAIN || errno == EADDRNOTAVAIL)
 				msg = "no free ports";
 			else
 				msg = "local address already in use";
 
-			qfprintf(stderr,"Cannot connect: %s.\n",msg);
+			qfprintf(stderr,"Connect() failed for backend %s: %s.\n", be->id, msg);
 			port_range_release_port(fdinfo[fd].port_range, fdinfo[fd].local_port);
 			fdinfo[fd].port_range = NULL;
 			close(fd);
-			send_log(be, LOG_EMERG,
-				 "Connect() failed for server %s/%s: %s.\n",
-				 be->id, srv->id, msg);
+			send_log(be, LOG_ERR, "Connect() failed for backend %s: %s.\n", be->id, msg);
 			return SN_ERR_RESOURCE;
 		} else if (errno == ETIMEDOUT) {
 			//qfprintf(stderr,"Connect(): ETIMEDOUT");
@@ -428,6 +426,41 @@ int tcpv4_connect_server(struct stream_interface *si,
 	return SN_ERR_NONE;  /* connection is OK */
 }
 
+
+/* Tries to drain any pending incoming data from the socket to reach the
+ * receive shutdown. Returns non-zero if the shutdown was found, otherwise
+ * zero. This is useful to decide whether we can close a connection cleanly
+ * are we must kill it hard.
+ */
+int tcp_drain(int fd)
+{
+	int turns = 2;
+	int len;
+
+	while (turns) {
+#ifdef MSG_TRUNC_CLEARS_INPUT
+		len = recv(fd, NULL, INT_MAX, MSG_DONTWAIT | MSG_NOSIGNAL | MSG_TRUNC);
+		if (len == -1 && errno == EFAULT)
+#endif
+			len = recv(fd, trash, trashlen, MSG_DONTWAIT | MSG_NOSIGNAL);
+
+		if (len == 0)                /* cool, shutdown received */
+			return 1;
+
+		if (len < 0) {
+			if (errno == EAGAIN) /* connection not closed yet */
+				return 0;
+			if (errno == EINTR)  /* oops, try again */
+				continue;
+			/* other errors indicate a dead connection, fine. */
+			return 1;
+		}
+		/* OK we read some data, let's try again once */
+		turns--;
+	}
+	/* some data are still present, give up */
+	return 0;
+}
 
 /* This function tries to bind a TCPv4/v6 listener. It may return a warning or
  * an error message in <err> if the message is at most <errlen> bytes long

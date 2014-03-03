@@ -1,7 +1,7 @@
 /*
  * haproxy log statistics reporter
  *
- * Copyright 2000-2010 Willy Tarreau <w@1wt.eu>
+ * Copyright 2000-2012 Willy Tarreau <w@1wt.eu>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,6 +29,7 @@
 #define SERVER_FIELD 8
 #define TIME_FIELD 9
 #define STATUS_FIELD 10
+#define BYTES_SENT_FIELD 11
 #define TERM_CODES_FIELD 14
 #define CONN_FIELD 15
 #define QUEUE_LEN_FIELD 16
@@ -67,6 +68,7 @@ struct url_stat {
 	char *url;
 	unsigned long long total_time;    /* sum(all reqs' times) */
 	unsigned long long total_time_ok; /* sum(all OK reqs' times) */
+	unsigned long long total_bytes_sent; /* sum(all bytes sent) */
 	unsigned int nb_err, nb_req;
 };
 
@@ -94,8 +96,6 @@ struct url_stat {
 #define FILT_COUNT_URL_TAVG  0x040000
 #define FILT_COUNT_URL_TTOTO 0x080000
 #define FILT_COUNT_URL_TAVGO 0x100000
-#define FILT_COUNT_URL_ANY   (FILT_COUNT_URL_ONLY|FILT_COUNT_URL_COUNT|FILT_COUNT_URL_ERR| \
-			      FILT_COUNT_URL_TTOT|FILT_COUNT_URL_TAVG|FILT_COUNT_URL_TTOTO|FILT_COUNT_URL_TAVGO)
 
 #define FILT_HTTP_ONLY       0x200000
 #define FILT_TERM_CODE_NAME  0x400000
@@ -106,17 +106,30 @@ struct url_stat {
 #define FILT_QUEUE_ONLY            0x4000000
 #define FILT_QUEUE_SRV_ONLY        0x8000000
 
+#define FILT_COUNT_URL_BAVG       0x10000000
+#define FILT_COUNT_URL_BTOT       0x20000000
+
+#define FILT_COUNT_URL_ANY   (FILT_COUNT_URL_ONLY|FILT_COUNT_URL_COUNT|FILT_COUNT_URL_ERR| \
+			      FILT_COUNT_URL_TTOT|FILT_COUNT_URL_TAVG|FILT_COUNT_URL_TTOTO|FILT_COUNT_URL_TAVGO| \
+			      FILT_COUNT_URL_BAVG|FILT_COUNT_URL_BTOT)
+
+#define FILT_COUNT_COOK_CODES 0x40000000
+#define FILT_COUNT_IP_COUNT   0x80000000
+
 unsigned int filter = 0;
 unsigned int filter_invert = 0;
 const char *line;
 int linenum = 0;
 int parse_err = 0;
 int lines_out = 0;
+int lines_max = -1;
 
 const char *fgets2(FILE *stream);
 
 void filter_count_url(const char *accept_field, const char *time_field, struct timer **tptr);
+void filter_count_ip(const char *source_field, const char *accept_field, const char *time_field, struct timer **tptr);
 void filter_count_srv_status(const char *accept_field, const char *time_field, struct timer **tptr);
+void filter_count_cook_codes(const char *accept_field, const char *time_field, struct timer **tptr);
 void filter_count_term_codes(const char *accept_field, const char *time_field, struct timer **tptr);
 void filter_count_status(const char *accept_field, const char *time_field, struct timer **tptr);
 void filter_graphs(const char *accept_field, const char *time_field, struct timer **tptr);
@@ -128,9 +141,10 @@ void usage(FILE *output, const char *msg)
 	fprintf(output,
 		"%s"
 		"Usage: halog [-h|--help] for long help\n"
-		"       halog [-q] [-c] [-v] {-gt|-pct|-st|-tc|-srv|-u|-uc|-ue|-ua|-ut|-uao|-uto}\n"
+		"       halog [-q] [-c] [-m <lines>]\n"
+		"       {-cc|-gt|-pct|-st|-tc|-srv|-u|-uc|-ue|-ua|-ut|-uao|-uto|-uba|-ubt|-ic}\n"
 		"       [-s <skip>] [-e|-E] [-H] [-rt|-RT <time>] [-ad <delay>] [-ac <count>]\n"
-		"       [-Q|-QS] [-tcn|-TCN <termcode>] [ -hs|-HS [min][:[max]] ] < log\n"
+		"       [-v] [-Q|-QS] [-tcn|-TCN <termcode>] [ -hs|-HS [min][:[max]] ] < log\n"
 		"\n",
 		msg ? msg : ""
 		);
@@ -159,18 +173,20 @@ void help()
 	       "Modifiers\n"
 	       " -v                      invert the input filtering condition\n"
 	       " -q                      don't report errors/warnings\n"
-	       "\n"
+	       " -m <lines>              limit output to the first <lines> lines\n"
 	       "Output filters - only one may be used at a time\n"
 	       " -c    only report the number of lines that would have been printed\n"
 	       " -pct  output connect and response times percentiles\n"
 	       " -st   output number of requests per HTTP status code\n"
+	       " -cc   output number of requests per cookie code (2 chars)\n"
 	       " -tc   output number of requests per termination code (2 chars)\n"
 	       " -srv  output statistics per server (time, requests, errors)\n"
 	       " -u*   output statistics per URL (time, requests, errors)\n"
 	       "       Additional characters indicate the output sorting key :\n"
 	       "       -u : by URL, -uc : request count, -ue : error count\n"
-	       "       -ua : average response time, -uto : average total time\n"
+	       "       -ua : average response time, -ut : average total time\n"
 	       "       -uao, -uto: average times computed on valid ('OK') requests\n"
+	       "       -uba, -ubt: average bytes returned, total bytes returned\n"
 	       );
 	exit(0);
 }
@@ -513,7 +529,7 @@ void truncated_line(int linenum, const char *line)
 
 int main(int argc, char **argv)
 {
-	const char *b, *e, *p, *time_field, *accept_field;
+	const char *b, *e, *p, *time_field, *accept_field, *source_field;
 	const char *filter_term_code_name = NULL;
 	const char *output_file = NULL;
 	int f, last, err;
@@ -562,6 +578,11 @@ int main(int argc, char **argv)
 			argc--; argv++;
 			skip_fields = atol(*argv);
 		}
+		else if (strcmp(argv[0], "-m") == 0) {
+			if (argc < 2) die("missing option for -m");
+			argc--; argv++;
+			lines_max = atol(*argv);
+		}
 		else if (strcmp(argv[0], "-e") == 0)
 			filter |= FILT_ERRORS_ONLY;
 		else if (strcmp(argv[0], "-E") == 0)
@@ -586,6 +607,8 @@ int main(int argc, char **argv)
 			filter |= FILT_COUNT_STATUS;
 		else if (strcmp(argv[0], "-srv") == 0)
 			filter |= FILT_COUNT_SRV_STATUS;
+		else if (strcmp(argv[0], "-cc") == 0)
+			filter |= FILT_COUNT_COOK_CODES;
 		else if (strcmp(argv[0], "-tc") == 0)
 			filter |= FILT_COUNT_TERM_CODES;
 		else if (strcmp(argv[0], "-tcn") == 0) {
@@ -632,6 +655,12 @@ int main(int argc, char **argv)
 			filter |= FILT_COUNT_URL_TAVGO;
 		else if (strcmp(argv[0], "-uto") == 0)
 			filter |= FILT_COUNT_URL_TTOTO;
+		else if (strcmp(argv[0], "-uba") == 0)
+			filter |= FILT_COUNT_URL_BAVG;
+		else if (strcmp(argv[0], "-ubt") == 0)
+			filter |= FILT_COUNT_URL_BTOT;
+		else if (strcmp(argv[0], "-ic") == 0)
+			filter |= FILT_COUNT_IP_COUNT;
 		else if (strcmp(argv[0], "-o") == 0) {
 			if (output_file)
 				die("Fatal: output file name already specified.\n");
@@ -663,6 +692,8 @@ int main(int argc, char **argv)
 		line_filter = filter_graphs;
 	else if (filter & FILT_COUNT_STATUS)
 		line_filter = filter_count_status;
+	else if (filter & FILT_COUNT_COOK_CODES)
+		line_filter = filter_count_cook_codes;
 	else if (filter & FILT_COUNT_TERM_CODES)
 		line_filter = filter_count_term_codes;
 	else if (filter & FILT_COUNT_SRV_STATUS)
@@ -672,16 +703,43 @@ int main(int argc, char **argv)
 	else if (filter & FILT_COUNT_ONLY)
 		line_filter = NULL;
 
+#if defined(POSIX_FADV_SEQUENTIAL)
+	/* around 20% performance improvement is observed on Linux with this
+	 * on cold-cache. Surprizingly, WILLNEED is less performant. Don't
+	 * use NOREUSE as it flushes the cache and prevents easy data
+	 * manipulation on logs!
+	 */
+	posix_fadvise(0, 0, 0, POSIX_FADV_SEQUENTIAL);
+#endif
+
+	if (!line_filter && /* FILT_COUNT_ONLY ( see above), and no input filter (see below) */
+	    !(filter & (FILT_HTTP_ONLY|FILT_TIME_RESP|FILT_ERRORS_ONLY|FILT_HTTP_STATUS|FILT_QUEUE_ONLY|FILT_QUEUE_SRV_ONLY|FILT_TERM_CODE_NAME))) {
+		/* read the whole file at once first, ignore it if inverted output */
+		if (!filter_invert)
+			while ((lines_max < 0 || lines_out < lines_max) && fgets2(stdin) != NULL)
+				lines_out++;
+
+		goto skip_filters;
+	}
+
 	while ((line = fgets2(stdin)) != NULL) {
 		linenum++;
 		time_field = NULL; accept_field = NULL;
+		source_field = NULL;
 
 		test = 1;
 
 		/* for any line we process, we first ensure that there is a field
 		 * looking like the accept date field (beginning with a '[').
 		 */
-		accept_field = field_start(line, ACCEPT_FIELD + skip_fields);
+		if (filter & FILT_COUNT_IP_COUNT) {
+			/* we need the IP first */
+			source_field = field_start(line, SOURCE_FIELD + skip_fields);
+			accept_field = field_start(source_field, ACCEPT_FIELD - SOURCE_FIELD + 1);
+		}
+		else
+			accept_field = field_start(line, ACCEPT_FIELD + skip_fields);
+
 		if (unlikely(*accept_field != '[')) {
 			parse_err++;
 			continue;
@@ -823,13 +881,19 @@ int main(int argc, char **argv)
 
 		/************** here we process inputs *******************/
 
-		if (line_filter)
-			line_filter(accept_field, time_field, &t);
+		if (line_filter) {
+			if (filter & FILT_COUNT_IP_COUNT)
+				filter_count_ip(source_field, accept_field, time_field, &t);
+			else
+				line_filter(accept_field, time_field, &t);
+		}
 		else
-			lines_out++; /* we're just counting lines */
+			lines_out++; /* FILT_COUNT_ONLY was used, so we're just counting lines */
+		if (lines_max >= 0 && lines_out >= lines_max)
+			break;
 	}
 
-
+ skip_filters:
 	/*****************************************************
 	 * Here we've finished reading all input. Depending on the
 	 * filters, we may still have some analysis to run on the
@@ -864,8 +928,10 @@ int main(int argc, char **argv)
 				ms = h % 1000; h = h / 1000;
 				s = h % 60; h = h / 60;
 				m = h % 60; h = h / 60;
-				lines_out++;
 				printf("%02d:%02d:%02d.%03d %d %d %d\n", h, m, s, ms, last, d, t->count);
+				lines_out++;
+				if (lines_max >= 0 && lines_out >= lines_max)
+					break;
 			}
 			n = eb32_next(n);
 		}
@@ -894,10 +960,8 @@ int main(int argc, char **argv)
 				else
 					d = val;
 
-				if (d > 0.0) {
+				if (d > 0.0)
 					printf("%d %d %f\n", f, last, d+1.0);
-					lines_out++;
-				}
 
 				n = eb32_next(n);
 			}
@@ -954,6 +1018,8 @@ int main(int argc, char **argv)
 			t = container_of(n, struct timer, node);
 			printf("%d %d\n", n->key, t->count);
 			lines_out++;
+			if (lines_max >= 0 && lines_out >= lines_max)
+				break;
 			n = eb32_next(n);
 		}
 	}
@@ -981,19 +1047,23 @@ int main(int argc, char **argv)
 			       (int)(srv->cum_ct / (srv->nb_ct?srv->nb_ct:1)), (int)(srv->cum_rt / (srv->nb_rt?srv->nb_rt:1)));
 			srv_node = ebmb_next(srv_node);
 			lines_out++;
+			if (lines_max >= 0 && lines_out >= lines_max)
+				break;
 		}
 	}
-	else if (filter & FILT_COUNT_TERM_CODES) {
+	else if (filter & (FILT_COUNT_TERM_CODES|FILT_COUNT_COOK_CODES)) {
 		/* output all statuses in the form of <code> <occurrences> */
 		n = eb32_first(&timers[0]);
 		while (n) {
 			t = container_of(n, struct timer, node);
 			printf("%c%c %d\n", (n->key >> 8), (n->key) & 255, t->count);
 			lines_out++;
+			if (lines_max >= 0 && lines_out >= lines_max)
+				break;
 			n = eb32_next(n);
 		}
 	}
-	else if (filter & FILT_COUNT_URL_ANY) {
+	else if (filter & (FILT_COUNT_URL_ANY|FILT_COUNT_IP_COUNT)) {
 		struct eb_node *node, *next;
 
 		if (!(filter & FILT_COUNT_URL_ONLY)) {
@@ -1008,7 +1078,7 @@ int main(int argc, char **argv)
 
 				ustat = container_of(node, struct url_stat, node.url.node);
 
-				if (filter & FILT_COUNT_URL_COUNT)
+				if (filter & (FILT_COUNT_URL_COUNT|FILT_COUNT_IP_COUNT))
 					ustat->node.val.key = ustat->nb_req;
 				else if (filter & FILT_COUNT_URL_ERR)
 					ustat->node.val.key = ustat->nb_err;
@@ -1020,6 +1090,10 @@ int main(int argc, char **argv)
 					ustat->node.val.key = ustat->total_time_ok;
 				else if (filter & FILT_COUNT_URL_TAVGO)
 					ustat->node.val.key = (ustat->nb_req - ustat->nb_err) ? ustat->total_time_ok / (ustat->nb_req - ustat->nb_err) : 0;
+				else if (filter & FILT_COUNT_URL_BAVG)
+					ustat->node.val.key = ustat->nb_req ? ustat->total_bytes_sent / ustat->nb_req : 0;
+				else if (filter & FILT_COUNT_URL_BTOT)
+					ustat->node.val.key = ustat->total_bytes_sent;
 				else
 					ustat->node.val.key = 0;
 
@@ -1029,23 +1103,30 @@ int main(int argc, char **argv)
 			timers[0] = timers[1];
 		}
 
-		printf("#req err ttot tavg oktot okavg url\n");
+		if (FILT_COUNT_IP_COUNT)
+			printf("#req err ttot tavg oktot okavg bavg btot src\n");
+		else
+			printf("#req err ttot tavg oktot okavg bavg btot url\n");
 
 		/* scan the tree in its reverse sorting order */
 		node = eb_last(&timers[0]);
 		while (node) {
 			ustat = container_of(node, struct url_stat, node.url.node);
-			printf("%d %d %Ld %Ld %Ld %Ld %s\n",
+			printf("%d %d %Ld %Ld %Ld %Ld %Ld %Ld %s\n",
 			       ustat->nb_req,
 			       ustat->nb_err,
 			       ustat->total_time,
 			       ustat->nb_req ? ustat->total_time / ustat->nb_req : 0,
 			       ustat->total_time_ok,
 			       (ustat->nb_req - ustat->nb_err) ? ustat->total_time_ok / (ustat->nb_req - ustat->nb_err) : 0,
+			       ustat->nb_req ? ustat->total_bytes_sent / ustat->nb_req : 0,
+			       ustat->total_bytes_sent,
 			       ustat->url);
 
 			node = eb_prev(node);
 			lines_out++;
+			if (lines_max >= 0 && lines_out >= lines_max)
+				break;
 		}
 	}
 
@@ -1075,7 +1156,6 @@ void filter_accept_holes(const char *accept_field, const char *time_field, struc
 
 	t2 = insert_value(&timers[0], tptr, val);
 	t2->count++;
-	lines_out++;
 	return;
 }
 
@@ -1096,6 +1176,28 @@ void filter_count_status(const char *accept_field, const char *time_field, struc
 	}
 
 	val = str2ic(b);
+
+	t2 = insert_value(&timers[0], tptr, val);
+	t2->count++;
+}
+
+void filter_count_cook_codes(const char *accept_field, const char *time_field, struct timer **tptr)
+{
+	struct timer *t2;
+	const char *b;
+	int val;
+
+	if (time_field)
+		b = field_start(time_field, TERM_CODES_FIELD - TIME_FIELD + 1);
+	else
+		b = field_start(accept_field, TERM_CODES_FIELD - ACCEPT_FIELD + 1);
+
+	if (unlikely(!*b)) {
+		truncated_line(linenum, line);
+		return;
+	}
+
+	val = 256 * b[2] + b[3];
 
 	t2 = insert_value(&timers[0], tptr, val);
 	t2->count++;
@@ -1224,6 +1326,7 @@ void filter_count_url(const char *accept_field, const char *time_field, struct t
 	struct ebpt_node *ebpt_old;
 	const char *b, *e;
 	int f, err, array[5];
+	int val;
 
 	/* let's collect the response time */
 	if (!time_field) {
@@ -1267,12 +1370,16 @@ void filter_count_url(const char *accept_field, const char *time_field, struct t
 	ustat->total_time = (array[3] >= 0) ? array[3] : array[4];
 	ustat->total_time_ok = (array[3] >= 0) ? array[3] : 0;
 
+	e = field_start(e, BYTES_SENT_FIELD - TIME_FIELD + 1);
+	val = str2ic(e);
+	ustat->total_bytes_sent = val;
+
 	/* the line may be truncated because of a bad request or anything like this,
 	 * without a method. Also, if it does not begin with an quote, let's skip to
 	 * the next field because it's a capture. Let's fall back to the "method" itself
 	 * if there's nothing else.
 	 */
-	e = field_start(e, METH_FIELD - TIME_FIELD + 1); // avg 100 ns per line
+	e = field_start(e, METH_FIELD - BYTES_SENT_FIELD + 1);
 	while (*e != '"' && *e) {
 		/* Note: some syslog servers escape quotes ! */
 		if (*e == '\\' && e[1] == '"')
@@ -1315,6 +1422,96 @@ void filter_count_url(const char *accept_field, const char *time_field, struct t
 		ustat_old->nb_err += ustat->nb_err;
 		ustat_old->total_time += ustat->total_time;
 		ustat_old->total_time_ok += ustat->total_time_ok;
+		ustat_old->total_bytes_sent += ustat->total_bytes_sent;
+	} else {
+		ustat->url = ustat->node.url.key = strdup(ustat->node.url.key);
+		ustat = NULL; /* node was used */
+	}
+}
+
+void filter_count_ip(const char *source_field, const char *accept_field, const char *time_field, struct timer **tptr)
+{
+	struct url_stat *ustat = NULL;
+	struct ebpt_node *ebpt_old;
+	const char *b, *e;
+	int f, err, array[5];
+	int val;
+
+	/* let's collect the response time */
+	if (!time_field) {
+		time_field = field_start(accept_field, TIME_FIELD - ACCEPT_FIELD + 1);  // avg 115 ns per line
+		if (unlikely(!*time_field)) {
+			truncated_line(linenum, line);
+			return;
+		}
+	}
+
+	/* we have the field TIME_FIELD starting at <time_field>. We'll
+	 * parse the 5 timers to detect errors, it takes avg 55 ns per line.
+	 */
+	e = time_field; err = 0; f = 0;
+	while (!SEP(*e)) {
+		if (f == 0 || f == 4) {
+			array[f] = str2ic(e);
+			if (array[f] < 0) {
+				array[f] = -1;
+				err = 1;
+			}
+		}
+		if (++f == 5)
+			break;
+		SKIP_CHAR(e, '/');
+	}
+	if (f < 5) {
+		parse_err++;
+		return;
+	}
+
+	/* OK we have our timers in array[0], and err is >0 if at
+	 * least one -1 was seen. <e> points to the first char of
+	 * the last timer. Let's prepare a new node with that.
+	 */
+	if (unlikely(!ustat))
+		ustat = calloc(1, sizeof(*ustat));
+
+	ustat->nb_err = err;
+	ustat->nb_req = 1;
+
+	/* use array[4] = total time in case of error */
+	ustat->total_time = (array[0] >= 0) ? array[0] : array[4];
+	ustat->total_time_ok = (array[0] >= 0) ? array[0] : 0;
+
+	e = field_start(e, BYTES_SENT_FIELD - TIME_FIELD + 1);
+	val = str2ic(e);
+	ustat->total_bytes_sent = val;
+
+	/* the source might be IPv4 or IPv6, so we always strip the port by
+	 * removing the last colon.
+	 */
+	b = source_field;
+	e = field_stop(b + 1);
+	while (e > b && e[-1] != ':')
+		e--;
+	*(char *)(e - 1) = '\0';
+
+	/* now instead of copying the src for a simple lookup, we'll link
+	 * to it from the node we're trying to insert. If it returns a
+	 * different value, it was already there. Otherwise we just have
+	 * to dynamically realloc an entry using strdup(). We're using the
+	 * <url> field of the node to store the source address.
+	 */
+	ustat->node.url.key = (char *)b;
+	ebpt_old = ebis_insert(&timers[0], &ustat->node.url);
+
+	if (ebpt_old != &ustat->node.url) {
+		struct url_stat *ustat_old;
+		/* node was already there, let's update previous one */
+		ustat_old = container_of(ebpt_old, struct url_stat, node.url);
+		ustat_old->nb_req ++;
+		ustat_old->nb_err += ustat->nb_err;
+		ustat_old->total_time += ustat->total_time;
+		ustat_old->total_time_ok += ustat->total_time_ok;
+		ustat_old->total_bytes_sent += ustat->total_bytes_sent;
 	} else {
 		ustat->url = ustat->node.url.key = strdup(ustat->node.url.key);
 		ustat = NULL; /* node was used */

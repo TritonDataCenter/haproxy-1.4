@@ -3,7 +3,7 @@
                          ----------------------
                               version 1.4
                              willy tarreau
-                               2010/09/16
+                               2013/06/17
 
 
 1) How to build it
@@ -12,7 +12,7 @@
 To build haproxy, you will need :
   - GNU make. Neither Solaris nor OpenBSD's make work with the GNU Makefile.
     However, specific Makefiles for BSD and OSX are provided.
-  - GCC between 2.91 and 4.5.0. Others may work, but not tested.
+  - GCC between 2.91 and 4.7. Others may work, but not tested.
   - GNU ld
 
 Also, you might want to build with libpcre support, which will provide a very
@@ -25,9 +25,12 @@ and assign it to the TARGET variable :
   - linux24     for Linux 2.4 and above (default)
   - linux24e    for Linux 2.4 with support for a working epoll (> 0.21)
   - linux26     for Linux 2.6 and above
+  - linux2628   for Linux 2.6.28 and above (enables splice and tproxy)
   - solaris     for Solaris 8 or 10 (others untested)
   - freebsd     for FreeBSD 5 to 8.0 (others untested)
-  - openbsd     for OpenBSD 3.1 to 4.6 (others untested)
+  - osx         for Mac OS/X
+  - openbsd     for OpenBSD 3.1 to 5.2 (others untested)
+  - aix52       for AIX 5.2
   - cygwin      for Cygwin
   - generic     for any other OS.
   - custom      to manually adjust every setting
@@ -95,6 +98,15 @@ variables in the BSD makefiles.
 AIX 5.3 is known to work with the generic target. However, for the binary to
 also run on 5.2 or earlier, you need to build with DEFINE="-D_MSGQSUPPORT",
 otherwise __fd_select() will be used while not being present in the libc.
+If you get build errors because of strange symbols or section mismatches,
+simply remove -g from DEBUG_CFLAGS.
+
+You can easily define your own target with the GNU Makefile. Unknown targets
+are processed with no default option except USE_POLL=default. So you can very
+well use that property to define your own set of options. USE_POLL can even be
+disabled by setting USE_POLL="". For example :
+
+    $ gmake TARGET=tiny USE_POLL="" TARGET_CFLAGS=-fomit-frame-pointer
 
 
 2) How to install it

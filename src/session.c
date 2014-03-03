@@ -203,7 +203,8 @@ int sess_update_st_con_tcp(struct session *s, struct stream_interface *si)
 	}
 
 	/* OK, maybe we want to abort */
-	if (unlikely((rep->flags & BF_SHUTW) ||
+	if (!(req->flags & BF_WRITE_PARTIAL) &&
+	    unlikely((rep->flags & BF_SHUTW) ||
 		     ((req->flags & BF_SHUTW_NOW) && /* FIXME: this should not prevent a connection from establishing */
 		      (((req->flags & (BF_OUT_EMPTY|BF_WRITE_ACTIVITY)) == BF_OUT_EMPTY) ||
 		       s->be->options & PR_O_ABRT_CLOSE)))) {
@@ -988,6 +989,21 @@ resync_stream_interface:
 			sess_change_server(s, NULL);
 			if (may_dequeue_tasks(s->srv, s->be))
 				process_srv_queue(s->srv);
+		}
+
+		if (s->req->cons->iohandler == stats_io_handler &&
+		    s->req->cons->st0 == STAT_CLI_O_SESS && s->data_state == DATA_ST_LIST) {
+			/* This is a fix for a design bug in the stats I/O handler :
+			 * "show sess $sess" may corrupt the struct session if not
+			 * properly detached. Unfortunately, in 1.4 there is no way
+			 * to ensure we always cleanly unregister an I/O handler upon
+			 * error. So we're doing the cleanup here if we can detect the
+			 * situation.
+			 */
+			if (!LIST_ISEMPTY(&s->data_ctx.sess.bref.users)) {
+				LIST_DEL(&s->data_ctx.sess.bref.users);
+				LIST_INIT(&s->data_ctx.sess.bref.users);
+			}
 		}
 	}
 

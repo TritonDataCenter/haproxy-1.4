@@ -1136,7 +1136,7 @@ int cfg_parse_listen(const char *file, int linenum, char **args, int kwm)
 		init_new_proxy(curproxy);
 		curproxy->next = proxy;
 		proxy = curproxy;
-		curproxy->conf.file = file;
+		curproxy->conf.file = strdup(file);
 		curproxy->conf.line = linenum;
 		curproxy->last_change = now.tv_sec;
 		curproxy->id = strdup(args[1]);
@@ -1220,6 +1220,7 @@ int cfg_parse_listen(const char *file, int linenum, char **args, int kwm)
 				}
 			}
 
+			curproxy->ck_opts = defproxy.ck_opts;
 			if (defproxy.cookie_name)
 				curproxy->cookie_name = strdup(defproxy.cookie_name);
 			curproxy->cookie_len = defproxy.cookie_len;
@@ -1719,8 +1720,7 @@ int cfg_parse_listen(const char *file, int linenum, char **args, int kwm)
 			goto out;
 		}
 
-		curproxy->options &= ~PR_O_COOK_ANY;
-		curproxy->options2 &= ~PR_O2_COOK_PSV;
+		curproxy->ck_opts = 0;
 		curproxy->cookie_maxidle = curproxy->cookie_maxlife = 0;
 		free(curproxy->cookie_domain); curproxy->cookie_domain = NULL;
 		free(curproxy->cookie_name);
@@ -1730,25 +1730,31 @@ int cfg_parse_listen(const char *file, int linenum, char **args, int kwm)
 		cur_arg = 2;
 		while (*(args[cur_arg])) {
 			if (!strcmp(args[cur_arg], "rewrite")) {
-				curproxy->options |= PR_O_COOK_RW;
+				curproxy->ck_opts |= PR_CK_RW;
 			}
 			else if (!strcmp(args[cur_arg], "indirect")) {
-				curproxy->options |= PR_O_COOK_IND;
+				curproxy->ck_opts |= PR_CK_IND;
 			}
 			else if (!strcmp(args[cur_arg], "insert")) {
-				curproxy->options |= PR_O_COOK_INS;
+				curproxy->ck_opts |= PR_CK_INS;
 			}
 			else if (!strcmp(args[cur_arg], "nocache")) {
-				curproxy->options |= PR_O_COOK_NOC;
+				curproxy->ck_opts |= PR_CK_NOC;
 			}
 			else if (!strcmp(args[cur_arg], "postonly")) {
-				curproxy->options |= PR_O_COOK_POST;
+				curproxy->ck_opts |= PR_CK_POST;
 			}
 			else if (!strcmp(args[cur_arg], "preserve")) {
-				curproxy->options2 |= PR_O2_COOK_PSV;
+				curproxy->ck_opts |= PR_CK_PSV;
 			}
 			else if (!strcmp(args[cur_arg], "prefix")) {
-				curproxy->options |= PR_O_COOK_PFX;
+				curproxy->ck_opts |= PR_CK_PFX;
+			}
+			else if (!strcmp(args[cur_arg], "httponly")) {
+				curproxy->ck_opts |= PR_CK_HTTPONLY;
+			}
+			else if (!strcmp(args[cur_arg], "secure")) {
+				curproxy->ck_opts |= PR_CK_SECURE;
 			}
 			else if (!strcmp(args[cur_arg], "domain")) {
 				if (!*args[cur_arg + 1]) {
@@ -1842,19 +1848,19 @@ int cfg_parse_listen(const char *file, int linenum, char **args, int kwm)
 			}
 			cur_arg++;
 		}
-		if (!POWEROF2(curproxy->options & (PR_O_COOK_RW|PR_O_COOK_IND))) {
+		if (!POWEROF2(curproxy->ck_opts & (PR_CK_RW|PR_CK_IND))) {
 			Alert("parsing [%s:%d] : cookie 'rewrite' and 'indirect' modes are incompatible.\n",
 			      file, linenum);
 			err_code |= ERR_ALERT | ERR_FATAL;
 		}
 
-		if (!POWEROF2(curproxy->options & (PR_O_COOK_RW|PR_O_COOK_INS|PR_O_COOK_PFX))) {
+		if (!POWEROF2(curproxy->ck_opts & (PR_CK_RW|PR_CK_INS|PR_CK_PFX))) {
 			Alert("parsing [%s:%d] : cookie 'rewrite', 'insert' and 'prefix' modes are incompatible.\n",
 			      file, linenum);
 			err_code |= ERR_ALERT | ERR_FATAL;
 		}
 
-		if ((curproxy->options2 & PR_O2_COOK_PSV) && !(curproxy->options & (PR_O_COOK_INS|PR_O_COOK_IND))) {
+		if ((curproxy->ck_opts & (PR_CK_PSV | PR_CK_INS | PR_CK_IND)) == PR_CK_PSV) {
 			Alert("parsing [%s:%d] : cookie 'preserve' requires at least 'insert' or 'indirect'.\n",
 			      file, linenum);
 			err_code |= ERR_ALERT | ERR_FATAL;
@@ -2219,9 +2225,9 @@ int cfg_parse_listen(const char *file, int linenum, char **args, int kwm)
 				}
 				cur_arg++;
 				code = atol(args[cur_arg]);
-				if (code < 301 || code > 303) {
-					Alert("parsing [%s:%d] : '%s': unsupported HTTP code '%d'.\n",
-					      file, linenum, args[0], code);
+				if (code < 301 || code > 308 || (code > 303 && code < 307)) {
+					Alert("parsing [%s:%d] : '%s': unsupported HTTP code '%s' (must be one of 301, 302, 303, 307 or 308).\n",
+					      file, linenum, args[0], args[cur_arg]);
 					err_code |= ERR_ALERT | ERR_FATAL;
 					goto out;
 				}
@@ -3429,7 +3435,7 @@ stats_error_parsing:
 			newsrv->next = curproxy->srv;
 			curproxy->srv = newsrv;
 			newsrv->proxy = curproxy;
-			newsrv->conf.file = file;
+			newsrv->conf.file = strdup(file);
 			newsrv->conf.line = linenum;
 
 			LIST_INIT(&newsrv->pendconns);
@@ -3670,12 +3676,6 @@ stats_error_parsing:
 				if (err) {
 					Alert("parsing [%s:%d] : unexpected character '%c' in 'slowstart' argument of server %s.\n",
 					      file, linenum, *err, newsrv->id);
-					err_code |= ERR_ALERT | ERR_FATAL;
-					goto out;
-				}
-				if (val < 0) {
-					Alert("parsing [%s:%d]: invalid value %d for argument '%s' of server %s.\n",
-					      file, linenum, val, args[cur_arg], newsrv->id);
 					err_code |= ERR_ALERT | ERR_FATAL;
 					goto out;
 				}
@@ -5068,11 +5068,6 @@ int check_config_validity()
 
 		case PR_MODE_HTTP:
 			curproxy->acl_requires |= ACL_USE_L7_ANY;
-			if ((curproxy->cookie_name != NULL) && (curproxy->srv == NULL)) {
-				Alert("config : HTTP proxy %s has a cookie but no server list !\n",
-				      curproxy->id);
-				cfgerr++;
-			}
 			break;
 		}
 
@@ -5582,12 +5577,6 @@ out_uri_auth_compat:
 		if (curproxy->mode != PR_MODE_HTTP) {
 			int optnum;
 
-			if (curproxy->options & PR_O_COOK_ANY) {
-				Warning("config : 'cookie' statement ignored for %s '%s' as it requires HTTP mode.\n",
-					proxy_type_str(curproxy), curproxy->id);
-				err_code |= ERR_WARN;
-			}
-
 			if (curproxy->uri_auth) {
 				Warning("config : 'stats' statement ignored for %s '%s' as it requires HTTP mode.\n",
 					proxy_type_str(curproxy), curproxy->id);
@@ -5647,10 +5636,16 @@ out_uri_auth_compat:
 		 */
 		newsrv = curproxy->srv;
 		while (newsrv != NULL) {
-			if ((curproxy->mode != PR_MODE_HTTP) && (newsrv->rdr_len || newsrv->cklen)) {
+			if ((curproxy->mode != PR_MODE_HTTP) && newsrv->rdr_len) {
 				Alert("config : %s '%s' : server cannot have cookie or redirect prefix in non-HTTP mode.\n",
 				      proxy_type_str(curproxy), curproxy->id);
 				cfgerr++;
+			}
+
+			if ((curproxy->mode != PR_MODE_HTTP) && newsrv->cklen) {
+				Warning("config : %s '%s' : ignoring cookie for server '%s' as HTTP mode is disabled.\n",
+				        proxy_type_str(curproxy), curproxy->id, newsrv->id);
+				err_code |= ERR_WARN;
 			}
 
 #if defined(CONFIG_HAP_CTTPROXY) || defined(CONFIG_HAP_LINUX_TPROXY)

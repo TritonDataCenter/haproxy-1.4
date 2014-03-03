@@ -170,6 +170,10 @@ REGPRM1 static int _do_init(struct poller *p)
 	int fd_set_bytes;
 
 	p->private = NULL;
+
+	if (global.maxsock > FD_SETSIZE)
+		goto fail_revt;
+
 	fd_set_bytes = sizeof(fd_set) * (global.maxsock + FD_SETSIZE - 1) / FD_SETSIZE;
 
 	if ((tmp_evts[DIR_RD] = (fd_set *)calloc(1, fd_set_bytes)) == NULL)
@@ -217,6 +221,9 @@ REGPRM1 static void _do_term(struct poller *p)
  */
 REGPRM1 static int _do_test(struct poller *p)
 {
+	if (global.maxsock > FD_SETSIZE)
+		return 0;
+
 	return 1;
 }
 

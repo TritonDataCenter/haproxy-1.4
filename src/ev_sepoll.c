@@ -481,7 +481,6 @@ REGPRM2 static void _do_poll(struct poller *p, int exp)
 	 */
 	fd = MIN(absmaxevents, spec_processed);
 	fd = MAX(global.tune.maxpollevents, fd);
-	fd = MIN(maxfd, fd);
 	/* we want to detect if an accept() will create new speculative FDs here */
 	fd_created = 0;
 	spec_processed = 0;

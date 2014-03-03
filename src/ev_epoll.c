@@ -194,11 +194,15 @@ REGPRM2 static int __fd_clr(const int fd, int dir)
 REGPRM1 static void __fd_rem(int fd)
 {
 	uint32_t ofs = FD2OFS(fd);
+	uint32_t old_evt;
 
-	if (unlikely(!((fd_evts[ofs] >> FD2BIT(fd)) & 3)))
+	old_evt = fd_evts[ofs] >> FD2BIT(fd);
+	old_evt &= 3;
+
+	if (unlikely(!old_evt))
 		return;
 
-	alloc_chg_list(fd, 0);
+	alloc_chg_list(fd, old_evt);
 	fd_evts[ofs] &= ~FD2MSK(fd);
 	return;
 }
@@ -245,8 +249,7 @@ REGPRM2 static void _do_poll(struct poller *p, int exp)
 			wait_time = MAX_DELAY_MS;
 	}
 
-	fd = MIN(maxfd, global.tune.maxpollevents);
-	status = epoll_wait(epoll_fd, epoll_events, fd, wait_time);
+	status = epoll_wait(epoll_fd, epoll_events, global.tune.maxpollevents, wait_time);
 	tv_update_date(wait_time, status);
 
 	for (count = 0; count < status; count++) {

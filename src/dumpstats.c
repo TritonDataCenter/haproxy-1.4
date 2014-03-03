@@ -2485,6 +2485,8 @@ int stats_dump_proxy(struct session *s, struct proxy *px, struct uri_auth *uri)
 					"<option value=\"\"></option>"
 					"<option value=\"disable\">Disable</option>"
 					"<option value=\"enable\">Enable</option>"
+					"<option value=\"stop\">Soft Stop</option>"
+					"<option value=\"start\">Soft Start</option>"
 					"</select>"
 					"<input type=\"hidden\" name=\"b\" value=\"#%d\">"
 					"&nbsp;<input type=\"submit\" value=\"Apply\">"

@@ -1230,7 +1230,7 @@ struct acl_cond *parse_acl_cond(const char **args, struct list *known_acl, int p
 
 		if (!cur_suite) {
 			cur_suite = (struct acl_term_suite *)calloc(1, sizeof(*cur_suite));
-			if (cur_term == NULL)
+			if (cur_suite == NULL)
 				goto out_free_term;
 			LIST_INIT(&cur_suite->terms);
 			LIST_ADDQ(&cond->suites, &cur_suite->list);

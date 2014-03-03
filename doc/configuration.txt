@@ -2,9 +2,9 @@
                                  HAProxy
                           Configuration Manual
                          ----------------------
-                             version 1.4.21
+                             version 1.4.24
                              willy tarreau
-                               2012/05/21
+                               2013/06/17
 
 
 This document covers the configuration language as implemented in the version
@@ -309,6 +309,8 @@ Haproxy may emit the following status codes by itself :
    301  when performing a redirection, depending on the configured code
    302  when performing a redirection, depending on the configured code
    303  when performing a redirection, depending on the configured code
+   307  when performing a redirection, depending on the configured code
+   308  when performing a redirection, depending on the configured code
    400  for an invalid or too large request
    401  when an authentication is required to perform the action (when
         accessing the stats page)
@@ -486,6 +488,8 @@ gid <number>
   Changes the process' group ID to <number>. It is recommended that the group
   ID is dedicated to HAProxy or to a small set of similar daemons. HAProxy must
   be started with a user belonging to this group, or with superuser privileges.
+  Note that if haproxy is started from a user having supplementary groups, it
+  will only be able to drop these groups if started with superuser privileges.
   See also "group" and "uid".
 
 group <group name>
@@ -1177,18 +1181,20 @@ balance url_param <param> [check_post [<max_wait>]]
                   weight on the fly will have no effect, but this can be
                   changed using "hash-type".
 
-      uri         The left part of the URI (before the question mark) is hashed
-                  and divided by the total weight of the running servers. The
-                  result designates which server will receive the request. This
-                  ensures that a same URI will always be directed to the same
-                  server as long as no server goes up or down. This is used
-                  with proxy caches and anti-virus proxies in order to maximize
-                  the cache hit rate. Note that this algorithm may only be used
-                  in an HTTP backend. This algorithm is static by default,
-                  which means that changing a server's weight on the fly will
-                  have no effect, but this can be changed using "hash-type".
+      uri         This algorithm hashes either the left part of the URI (before
+                  the question mark) or the whole URI (if the "whole" parameter
+                  is present) and divides the hash value by the total weight of
+                  the running servers. The result designates which server will
+                  receive the request. This ensures that the same URI will
+                  always be directed to the same server as long as no server
+                  goes up or down. This is used with proxy caches and
+                  anti-virus proxies in order to maximize the cache hit rate.
+                  Note that this algorithm may only be used in an HTTP backend.
+                  This algorithm is static by default, which means that
+                  changing a server's weight on the fly will have no effect,
+                  but this can be changed using "hash-type".
 
-                  This algorithm support two optional parameters "len" and
+                  This algorithm supports two optional parameters "len" and
                   "depth", both followed by a positive integer number. These
                   options may be helpful when it is needed to balance servers
                   based on the beginning of the URI only. The "len" parameter
@@ -1707,8 +1713,8 @@ contimeout <timeout> (deprecated)
 
 
 cookie <name> [ rewrite | insert | prefix ] [ indirect ] [ nocache ]
-              [ postonly ] [ preserve ] [ domain <domain> ]*
-              [ maxidle <idle> ] [ maxlife <life> ]
+              [ postonly ] [ preserve ] [ httponly ] [ secure ]
+              [ domain <domain> ]* [ maxidle <idle> ] [ maxlife <life> ]
   Enable cookie-based persistence in a backend.
   May be used in sections :   defaults | frontend | listen | backend
                                  yes   |    no    |   yes  |   yes
@@ -1800,6 +1806,18 @@ cookie <name> [ rewrite | insert | prefix ] [ indirect ] [ nocache ]
               check option, it is possible to perform a completely graceful
               shutdown because users will definitely leave the server after
               they logout.
+
+    httponly  This option tells haproxy to add an "HttpOnly" cookie attribute
+              when a cookie is inserted. This attribute is used so that a
+              user agent doesn't share the cookie with non-HTTP components.
+              Please check RFC6265 for more information on this attribute.
+
+    secure    This option tells haproxy to add a "Secure" cookie attribute when
+              a cookie is inserted. This attribute is used so that a user agent
+              never emits this cookie over non-secure channels, which means
+              that a cookie learned with this flag will be presented only over
+              SSL/TLS connections. Please check RFC6265 for more information on
+              this attribute.
 
     domain    This option allows to specify the domain at which a cookie is
               inserted. It requires exactly one parameter: a valid domain
@@ -2484,6 +2502,8 @@ maxconn <conns>
   Also, when <conns> is set to large values, it is possible that the servers
   are not sized to accept such loads, and for this reason it is generally wise
   to assign them some reasonable connection limits.
+
+  By default, this value is set to 2000.
 
   See also : "server", global section's "maxconn", "fullconn"
 
@@ -4055,12 +4075,14 @@ redirect prefix   <to> [code <code>] <option> [{if | unless} <condition>]
               URL.
 
     <code>    The code is optional. It indicates which type of HTTP redirection
-              is desired. Only codes 301, 302 and 303 are supported, and 302 is
-              used if no code is specified. 301 means "Moved permanently", and
-              a browser may cache the Location. 302 means "Moved permanently"
-              and means that the browser should not cache the redirection. 303
-              is equivalent to 302 except that the browser will fetch the
-              location with a GET method.
+              is desired. Only codes 301, 302, 303, 307 and 308 are supported,
+              with 302 used by default if no code is specified. 301 means
+              "Moved permanently", and a browser may cache the Location. 302
+              means "Moved permanently" and means that the browser should not
+              cache the redirection. 303 is equivalent to 302 except that the
+              browser will fetch the location with a GET method. 307 is just
+              like 302 but makes it clear that the same method must be reused.
+              Likewise, 308 replaces 301 if the same method must be used.
 
     <option>  There are several options which can be specified to adjust the
               expected behaviour of a redirection :

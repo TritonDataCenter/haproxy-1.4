@@ -38,7 +38,7 @@ void signal_init()
 
 void signal_handler(int sig)
 {
-	if (sig < 0 || sig > MAX_SIGNAL || !signal_state[sig].handler) {
+	if (sig < 0 || sig >= MAX_SIGNAL || !signal_state[sig].handler) {
 		/* unhandled signal */
 		qfprintf(stderr, "Received unhandled signal %d. Signal has been disabled.\n", sig);
 		signal(sig, SIG_IGN);
@@ -64,7 +64,7 @@ void signal_handler(int sig)
  */
 void signal_register(int sig, void (*handler)(int))
 {
-	if (sig < 0 || sig > MAX_SIGNAL) {
+	if (sig < 0 || sig >= MAX_SIGNAL) {
 		qfprintf(stderr, "Failed to register signal %d : out of range [0..%d].\n", sig, MAX_SIGNAL);
 		return;
 	}

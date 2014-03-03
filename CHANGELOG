@@ -1,6 +1,78 @@
 ChangeLog :
 ===========
 
+2013/06/17 : 1.4.24
+    - BUG/MAJOR: backend: consistent hash can loop forever in certain circumstances
+    - BUG/MEDIUM: checks: disable TCP quickack when pure TCP checks are used
+    - MEDIUM: protocol: implement a "drain" function in protocol layers
+    - BUG/CRITICAL: fix a possible crash when using negative header occurrences
+
+2013/04/03 : 1.4.23
+    - CONTRIB: halog: sort URLs by avg bytes_read or total bytes_read
+    - BUG: fix garbage data when http-send-name-header replaces an existing header
+    - BUG/MEDIUM: remove supplementary groups when changing gid
+    - BUG/MINOR: Correct logic in cut_crlf()
+    - BUG/MINOR: config: use a copy of the file name in proxy configurations
+    - BUG/MINOR: epoll: correctly disable FD polling in fd_rem()
+    - MINOR: halog: sort output by cookie code
+    - BUG/MINOR: halog: -ad/-ac report the correct number of output lines
+    - BUG/MINOR: halog: fix help message for -ut/-uto
+    - BUG/MEDIUM: http: set DONTWAIT on data when switching to tunnel mode
+    - BUG/MEDIUM: command-line option -D must have precedence over "debug"
+    - OPTIM: halog: keep a fast path for the lines-count only
+    - MINOR: halog: add a parameter to limit output line count
+    - BUG: halog: fix broken output limitation
+    - MEDIUM: checks: avoid accumulating TIME_WAITs during checks
+    - MEDIUM: checks: prevent TIME_WAITs from appearing also on timeouts
+    - BUG/MAJOR: cli: show sess <id> may randomly corrupt the back-ref list
+    - BUG/MINOR: http: don't report client aborts as server errors
+    - BUG/MINOR: http: don't log a 503 on client errors while waiting for requests
+    - BUG/MEDIUM: tcp: process could theorically crash on lack of source ports
+    - BUG/MINOR: http: don't abort client connection on premature responses
+    - BUILD: no need to clean up when making git-tar
+    - MINOR: http: always report PR-- flags for redirect rules
+    - BUG/MINOR: time: frequency counters are not totally accurate
+    - BUG/MINOR: http: don't process abortonclose when request was sent
+    - BUG/MINOR: epoll: use a fix maxevents argument in epoll_wait()
+    - BUG/MINOR: config: fix improper check for failed memory alloc in ACL parser
+    - BUG/MEDIUM: checks: ensure the health_status is always within bounds
+    - CLEANUP: http: remove a useless null check
+    - BUG/MEDIUM: signal: signal handler does not properly check for signal bounds
+    - BUG/MEDIUM: uri_auth: missing NULL check and memory leak on memory shortage
+    - CLEANUP: config: slowstart is never negative
+    - BUILD: improve the makefile's support for libpcre
+    - BUG/MINOR: checks: fix an warning introduced by commit 2f61455a
+    - MEDIUM: halog: add support for counting per source address (-ic)
+    - DOC: mention the new HTTP 307 and 308 redirect statues     (cherry picked from commit b67fdc4cd8bde202f2805d98683ddab929469a05)
+    - MEDIUM: poll: do not use FD_* macros anymore
+    - BUG/MAJOR: ev_select: disable the select() poller if maxsock > FD_SETSIZE
+    - BUILD: enable poll() by default in the makefile
+    - BUILD: add explicit support for Mac OS/X
+    - BUG/CRITICAL: using HTTP information in tcp-request content may crash the process
+    - MEDIUM: http: implement redirect 307 and 308
+    - MINOR: http: status 301 should not be marked non-cacheable
+
+2012/08/14 : 1.4.22
+    - BUG/MEDIUM: option forwardfor if-none doesn't work with some configurations
+    - MINOR: balance uri: added 'whole' parameter to include query string in hash calculation
+    - DOC: specify the default value for maxconn in the context of a proxy
+    - BUG/MINOR: checks: expire on timeout.check if smaller than timeout.connect
+    - REORG/MINOR: use dedicated proxy flags for the cookie handling
+    - BUG/MINOR: config: do not report twice the incompatibility between cookie and non-http
+    - MINOR: http: add support for "httponly" and "secure" cookie attributes
+    - MEDIUM: stats: add support for soft stop/soft start in the admin interface
+    - BUILD: add support for linux kernels >= 2.6.28
+    - MINOR: contrib/iprange: add a network IP range to mask converter
+    - BUILD: add an AIX 5.2 (and later) target.
+    - MINOR: halog: use the more recent dual-mode fgets2 implementation
+    - BUG/MEDIUM: ebtree: ebmb_insert() must not call cmp_bits on full-length matches
+    - CLEANUP: halog: make clean should also remove .o files     (cherry picked from commit 8ad4193100aafa19f04929670371bf823dbe11d0)
+    - OPTIM: halog: make use of memchr() on platforms which provide a fast one
+    - OPTIM: halog: improve cold-cache behaviour when loading a file
+    - [MINOR] config: make it possible to specify a cookie even without a server
+    - MINOR: config: tolerate server "cookie" setting in non-HTTP mode
+    - BUG/MINOR: tarpit: fix condition to return the HTTP 500 message
+
 2012/05/21 : 1.4.21
     - MINOR: patch for minor typo (ressources/resources)
     - CLEANUP: fix typo in findserver() log message

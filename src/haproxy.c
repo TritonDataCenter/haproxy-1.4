@@ -1,6 +1,6 @@
 /*
  * HA-Proxy : High Availability-enabled HTTP/TCP proxy
- * Copyright 2000-2012  Willy Tarreau <w@1wt.eu>.
+ * Copyright 2000-2013  Willy Tarreau <w@1wt.eu>.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -44,6 +44,7 @@
 #include <sys/resource.h>
 #include <time.h>
 #include <syslog.h>
+#include <grp.h>
 
 #ifdef DEBUG_FULL
 #include <assert.h>
@@ -158,7 +159,7 @@ char hostname[MAX_HOSTNAME_LEN];
 void display_version()
 {
 	printf("HA-Proxy version " HAPROXY_VERSION " " HAPROXY_DATE"\n");
-	printf("Copyright 2000-2012 Willy Tarreau <w@1wt.eu>\n\n");
+	printf("Copyright 2000-2013 Willy Tarreau <w@1wt.eu>\n\n");
 }
 
 void display_build_opts()
@@ -649,9 +650,16 @@ void init(int argc, char **argv)
 	if (arg_mode & (MODE_DEBUG | MODE_FOREGROUND)) {
 		/* command line debug mode inhibits configuration mode */
 		global.mode &= ~(MODE_DAEMON | MODE_QUIET);
+		global.mode |= (arg_mode & (MODE_DEBUG | MODE_FOREGROUND));
 	}
-	global.mode |= (arg_mode & (MODE_DAEMON | MODE_FOREGROUND | MODE_QUIET |
-				    MODE_VERBOSE | MODE_DEBUG ));
+
+	if (arg_mode & MODE_DAEMON) {
+		/* command line daemon mode inhibits foreground and debug modes mode */
+		global.mode &= ~(MODE_DEBUG | MODE_FOREGROUND);
+		global.mode |= (arg_mode & MODE_DAEMON);
+	}
+
+	global.mode |= (arg_mode & (MODE_QUIET | MODE_VERBOSE));
 
 	if ((global.mode & MODE_DEBUG) && (global.mode & (MODE_DAEMON | MODE_QUIET))) {
 		Warning("<debug> mode incompatible with <quiet> and <daemon>. Keeping <debug> only.\n");
@@ -703,7 +711,16 @@ void init(int argc, char **argv)
 		list_pollers(stderr);
 
 	if (!init_pollers()) {
-		Alert("No polling mechanism available.\n");
+		Alert("No polling mechanism available.\n"
+		      "  It is likely that haproxy was built with TARGET=generic and that FD_SETSIZE\n"
+		      "  is too low on this platform to support maxconn and the number of listeners\n"
+		      "  and servers. You should rebuild haproxy specifying your system using TARGET=\n"
+		      "  in order to support other polling systems (poll, epoll, kqueue) or reduce the\n"
+		      "  global maxconn setting to accomodate the system's limitation. For reference,\n"
+		      "  FD_SETSIZE=%d on this system, global.maxconn=%d resulting in a maximum of\n"
+		      "  %d file descriptors. You should thus reduce global.maxconn by %d. Also,\n"
+		      "  check build settings using 'haproxy -vv'.\n\n",
+		      FD_SETSIZE, global.maxconn, global.maxsock, (global.maxsock + 1 - FD_SETSIZE) / 2);
 		exit(1);
 	}
 	if (global.mode & (MODE_VERBOSE|MODE_DEBUG)) {
@@ -732,6 +749,7 @@ void deinit(void)
 	int i;
 
 	while (p) {
+		free(p->conf.file);
 		free(p->id);
 		free(p->check_req);
 		free(p->cookie_name);
@@ -1178,10 +1196,16 @@ int main(int argc, char **argv)
 	 */
 
 	/* setgid / setuid */
-	if (global.gid && setgid(global.gid) == -1) {
-		Alert("[%s.main()] Cannot set gid %d.\n", argv[0], global.gid);
-		protocol_unbind_all();
-		exit(1);
+	if (global.gid) {
+		if (getgroups(0, NULL) > 0 && setgroups(0, NULL) == -1)
+			Warning("[%s.main()] Failed to drop supplementary groups. Using 'gid'/'group'"
+				" without 'uid'/'user' is generally useless.\n", argv[0]);
+
+		if (setgid(global.gid) == -1) {
+			Alert("[%s.main()] Cannot set gid %d.\n", argv[0], global.gid);
+			protocol_unbind_all();
+			exit(1);
+		}
 	}
 
 	if (global.uid && setuid(global.uid) == -1) {

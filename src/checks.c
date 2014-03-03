@@ -584,7 +584,7 @@ void health_adjust(struct server *s, short status) {
 	if (s->observe >= HANA_OBS_SIZE)
 		return;
 
-	if (status >= HCHK_STATUS_SIZE || !analyze_statuses[status].desc)
+	if (status >= HANA_STATUS_SIZE || !analyze_statuses[status].desc)
 		return;
 
 	switch (analyze_statuses[status].lr[s->observe - 1]) {
@@ -781,8 +781,10 @@ static int event_srv_chk_w(int fd)
 			ret = send(fd, check_req, check_len, MSG_DONTWAIT | MSG_NOSIGNAL);
 			if (ret == check_len) {
 				/* we allow up to <timeout.check> if nonzero for a responce */
-				if (s->proxy->timeout.check)
+				if (s->proxy->timeout.check) {
 					t->expire = tick_add_ifset(now_ms, s->proxy->timeout.check);
+					task_queue(t);
+				}
 				EV_FD_SET(fd, DIR_RD);   /* prepare for reading reply */
 				goto out_nowake;
 			}
@@ -831,6 +833,11 @@ static int event_srv_chk_w(int fd)
 
 			/* good TCP connection is enough */
 			set_server_check_status(s, HCHK_STATUS_L4OK, NULL);
+
+			/* avoid accumulating TIME_WAIT on connect-only checks */
+			if (!tcp_drain(fd))
+				setsockopt(fd, SOL_SOCKET, SO_LINGER,
+					   (struct linger *) &nolinger, sizeof(struct linger));
 			goto out_wakeup;
 		}
 	}
@@ -871,18 +878,18 @@ static int event_srv_chk_w(int fd)
 static int event_srv_chk_r(int fd)
 {
 	__label__ out_wakeup;
-	int len;
+	int len = 0;
 	struct task *t = fdtab[fd].owner;
 	struct server *s = t->context;
 	char *desc;
-	int done;
+	int done, shutr;
 	unsigned short msglen;
 
 	if (unlikely((s->result & SRV_CHK_ERROR) || (fdtab[fd].state == FD_STERROR))) {
 		/* in case of TCP only, this tells us if the connection failed */
 		if (!(s->result & SRV_CHK_ERROR))
 			set_server_check_status(s, HCHK_STATUS_SOCKERR, NULL);
-
+		shutr = 1;
 		goto out_wakeup;
 	}
 
@@ -896,7 +903,7 @@ static int event_srv_chk_r(int fd)
 	 * with running the checks without attempting another socket read.
 	 */
 
-	done = 0;
+	done = shutr = 0;
 	for (len = 0; s->check_data_len < global.tune.chksize; s->check_data_len += len) {
 		len = recv(fd, s->check_data + s->check_data_len, global.tune.chksize - s->check_data_len, 0);
 		if (len <= 0)
@@ -904,20 +911,21 @@ static int event_srv_chk_r(int fd)
 	}
 
 	if (len == 0)
-		done = 1; /* connection hangup received */
+		done = shutr = 1; /* connection hangup received */
 	else if (len < 0 && errno != EAGAIN) {
 		/* Report network errors only if we got no other data. Otherwise
 		 * we'll let the upper layers decide whether the response is OK
 		 * or not. It is very common that an RST sent by the server is
 		 * reported as an error just after the last data chunk.
 		 */
-		done = 1;
+		done = shutr = 1;
 		if (!s->check_data_len) {
 			if (!(s->result & SRV_CHK_ERROR))
 				set_server_check_status(s, HCHK_STATUS_SOCKERR, NULL);
 			goto out_wakeup;
 		}
 	}
+	/* Note: we keep len = -1 if EAGAIN was detected */
 
 	/* Intermediate or complete response received.
 	 * Terminate string in check_data buffer.
@@ -1160,7 +1168,15 @@ static int event_srv_chk_r(int fd)
 	*s->check_data = '\0';
 	s->check_data_len = 0;
 
-	/* Close the connection... */
+	/* Close the connection... We absolutely want to perform a hard close
+	 * and reset the connection if some data are pending, otherwise we end
+	 * up with many TIME_WAITs and eat all the source port range quickly.
+	 * To avoid sending RSTs all the time, we first try to drain pending
+	 * data.
+	 */
+	if (!shutr && (len == -1 || !tcp_drain(fd)))
+		setsockopt(fd, SOL_SOCKET, SO_LINGER,
+			   (struct linger *) &nolinger, sizeof(struct linger));
 	shutdown(fd, SHUT_RDWR);
 	EV_FD_CLR(fd, DIR_RD);
 	task_wakeup(t, TASK_WOKEN_IO);
@@ -1374,8 +1390,13 @@ struct task *process_chk(struct task *t)
 					/* disabling tcp quick ack now allows
 					 * the request to leave the machine with
 					 * the first ACK.
+					 * We also want to do this to perform a
+					 * SYN-SYN/ACK-RST sequence when raw TCP
+					 * checks are configured.
 					 */
-					if (s->proxy->options2 & PR_O2_SMARTCON)
+					if ((s->proxy->options2 & PR_O2_SMARTCON) ||
+					    (!(s->proxy->options & (PR_O_HTTP_CHK|PR_O_SMTP_CHK)) &&
+					     !(s->proxy->options2 & (PR_O2_SSL3_CHK|PR_O2_MYSQL_CHK|PR_O2_LDAP_CHK))))
 						setsockopt(fd, IPPROTO_TCP, TCP_QUICKACK, (char *) &zero, sizeof(zero));
 #endif
 					if ((connect(fd, (struct sockaddr *)&sa, sizeof(sa)) != -1) || (errno == EINPROGRESS)) {
@@ -1513,6 +1534,9 @@ struct task *process_chk(struct task *t)
 			else
 				set_server_down(s);
 			s->curfd = -1;
+			/* avoid accumulating TIME_WAIT on timeouts */
+			setsockopt(fd, SOL_SOCKET, SO_LINGER,
+				   (struct linger *) &nolinger, sizeof(struct linger));
 			fd_delete(fd);
 
 			rv = 0;
