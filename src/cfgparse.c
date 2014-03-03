@@ -460,6 +460,9 @@ int cfg_parse_global(const char *file, int linenum, char **args, int kwm)
 	else if (!strcmp(args[0], "nokqueue")) {
 		global.tune.options &= ~GTUNE_USE_KQUEUE;
 	}
+	else if (!strcmp(args[0], "noevports")) {
+		global.tune.options &= ~GTUNE_USE_EVPORTS;
+	}
 	else if (!strcmp(args[0], "nopoll")) {
 		global.tune.options &= ~GTUNE_USE_POLL;
 	}

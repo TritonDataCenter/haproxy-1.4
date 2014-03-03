@@ -22,6 +22,7 @@
 #   USE_LINUX_SPLICE     : enable kernel 2.6 splicing. Automatic.
 #   USE_LIBCRYPT         : enable crypted passwords using -lcrypt
 #   USE_CRYPT_H          : set it if your system requires including crypt.h
+#   USE_EVPORTS          : enable event ports on SunOS systems. Automatic.
 #
 # Options can be forced by specifying "USE_xxx=1" or can be disabled by using
 # "USE_xxx=" (empty string).
@@ -232,6 +233,7 @@ else
 ifeq ($(TARGET),solaris)
   # This is for Solaris 8
   USE_POLL       = implicit
+  USE_EVPORTS    = implicit
   TARGET_CFLAGS  = -fno-omit-frame-pointer -DFD_SETSIZE=65536 -D_REENTRANT
   TARGET_LDFLAGS = -lnsl -lsocket
   USE_TPROXY     = implicit
@@ -408,6 +410,12 @@ endif
 ifneq ($(USE_MY_EPOLL),)
 OPTIONS_CFLAGS += -DUSE_MY_EPOLL
 BUILD_OPTIONS  += $(call ignore_implicit,USE_MY_EPOLL)
+endif
+
+ifneq ($(USE_EVPORTS),)
+OPTIONS_CFLAGS += -DENABLE_EVPORTS
+OPTIONS_OBJS   += src/ev_evports.o
+BUILD_OPTIONS  += $(call ignore_implicit,USE_EVPORTS)
 endif
 
 ifneq ($(USE_KQUEUE),)

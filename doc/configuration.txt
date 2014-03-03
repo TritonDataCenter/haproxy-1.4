@@ -449,6 +449,7 @@ The following keywords are supported in the "global" section :
    - maxpipes
    - noepoll
    - nokqueue
+   - noevports
    - nopoll
    - nosepoll
    - nosplice
@@ -649,12 +650,18 @@ nokqueue
   equivalent to the command-line argument "-dk". The next polling system
   used will generally be "poll". See also "nopoll".
 
+noevports
+  Disables the use of the event ports event polling system on SunOS systems
+  derived from Solaris 10 and later. It is equivalent to the command-line
+  argument "-dv". The next polling system used will generally be "poll". See
+  also "nopoll".
+
 nopoll
   Disables the use of the "poll" event polling system. It is equivalent to the
   command-line argument "-dp". The next polling system used will be "select".
   It should never be needed to disable "poll" since it's available on all
-  platforms supported by HAProxy. See also "nosepoll", and "nopoll" and
-  "nokqueue".
+  platforms supported by HAProxy. See also "nosepoll", and "nopoll", "nokqueue",
+  and "noevports".
 
 nosepoll
   Disables the use of the "speculative epoll" event polling system on Linux. It
