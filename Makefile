@@ -232,7 +232,7 @@ else
 ifeq ($(TARGET),solaris)
   # This is for Solaris 8
   USE_POLL       = implicit
-  TARGET_CFLAGS  = -fomit-frame-pointer -DFD_SETSIZE=65536 -D_REENTRANT
+  TARGET_CFLAGS  = -fno-omit-frame-pointer -DFD_SETSIZE=65536 -D_REENTRANT
   TARGET_LDFLAGS = -lnsl -lsocket
   USE_TPROXY     = implicit
   USE_LIBCRYPT    = implicit
