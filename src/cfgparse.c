@@ -1466,6 +1466,16 @@ int cfg_parse_listen(const char *file, int linenum, char **args, int kwm)
 #endif
 			}
 
+			if (!strcmp(args[cur_arg], "accept-proxy")) { /* expect a 'PROXY' line first */
+				struct listener *l;
+
+				for (l = curproxy->listen; l != last_listen; l = l->next)
+					l->options |= LI_O_ACC_PROXY;
+
+				cur_arg ++;
+				continue;
+			}
+
 			if (!strcmp(args[cur_arg], "name")) {
 				struct listener *l;
 
@@ -1518,7 +1528,7 @@ int cfg_parse_listen(const char *file, int linenum, char **args, int kwm)
 				continue;
 			}
 
-			Alert("parsing [%s:%d] : '%s' only supports the 'transparent', 'defer-accept', 'name', 'id', 'mss' and 'interface' options.\n",
+			Alert("parsing [%s:%d] : '%s' only supports the 'transparent', 'accept-proxy', 'defer-accept', 'name', 'id', 'mss' and 'interface' options.\n",
 			      file, linenum, args[0]);
 			err_code |= ERR_ALERT | ERR_FATAL;
 			goto out;
@@ -5730,6 +5740,9 @@ out_uri_auth_compat:
 			listener->private = curproxy;
 			listener->handler = process_session;
 			listener->analysers |= curproxy->fe_req_ana;
+
+			if (listener->options & LI_O_ACC_PROXY)
+				listener->analysers |= AN_REQ_DECODE_PROXY;
 
 			/* smart accept mode is automatic in HTTP mode */
 			if ((curproxy->options2 & PR_O2_SMARTACC) ||

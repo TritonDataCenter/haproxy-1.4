@@ -1055,6 +1055,12 @@ resync_stream_interface:
 			while (ana_list && max_loops--) {
 				/* Warning! ensure that analysers are always placed in ascending order! */
 
+				if (ana_list & AN_REQ_DECODE_PROXY) {
+					if (!frontend_decode_proxy_request(s, s->req, AN_REQ_DECODE_PROXY))
+						break;
+					UPDATE_ANALYSERS(s->req->analysers, ana_list, ana_back, AN_REQ_DECODE_PROXY);
+				}
+
 				if (ana_list & AN_REQ_INSPECT) {
 					if (!tcp_inspect_request(s, s->req, AN_REQ_INSPECT))
 						break;

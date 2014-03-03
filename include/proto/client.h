@@ -25,6 +25,7 @@
 #include <common/config.h>
 #include <types/session.h>
 
+int frontend_decode_proxy_request(struct session *s, struct buffer *req, int an_bit);
 void get_frt_addr(struct session *s);
 int event_accept(int fd);
 
